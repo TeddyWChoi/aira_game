@@ -65,14 +65,70 @@ class AssetLoader {
 
   async loadAudio(src) {
     return new Promise((resolve, reject) => {
+      console.log(`Starting to load audio: ${src}`);
+      const startTime = performance.now();
       const audio = new Audio();
       audio.preload = 'auto';
-      audio.oncanplaythrough = () => {
-        // Store the loaded audio data in cache
+      
+      // Set timeout for audio loading
+      const timeout = setTimeout(() => {
+        const elapsed = performance.now() - startTime;
+        console.error(`Audio loading timeout after ${elapsed.toFixed(2)}ms: ${src}`);
+        reject(new Error(`Audio loading timeout: ${src}`));
+      }, 20000); // 20 second timeout for audio
+      
+      // Multiple event listeners for better compatibility
+      const cleanup = () => {
+        clearTimeout(timeout);
+        audio.removeEventListener('canplaythrough', onCanPlay);
+        audio.removeEventListener('loadeddata', onLoadedData);
+        audio.removeEventListener('error', onError);
+        audio.removeEventListener('loadstart', onLoadStart);
+        audio.removeEventListener('progress', onProgress);
+      };
+      
+      const onCanPlay = () => {
+        const elapsed = performance.now() - startTime;
+        console.log(`Audio loaded successfully in ${elapsed.toFixed(2)}ms: ${src}`);
+        cleanup();
         this.preloadedAudios.set(src, audio);
         resolve(audio);
       };
-      audio.onerror = () => reject(new Error(`Failed to load audio: ${src}`));
+      
+      const onLoadedData = () => {
+        const elapsed = performance.now() - startTime;
+        console.log(`Audio data loaded in ${elapsed.toFixed(2)}ms: ${src}`);
+        // Don't resolve here, wait for canplaythrough
+      };
+      
+      const onError = (error) => {
+        const elapsed = performance.now() - startTime;
+        console.error(`Audio loading error after ${elapsed.toFixed(2)}ms: ${src}`, error);
+        cleanup();
+        reject(new Error(`Failed to load audio: ${src}`));
+      };
+      
+      const onLoadStart = () => {
+        console.log(`Audio load started: ${src}`);
+      };
+      
+      const onProgress = () => {
+        if (audio.buffered.length > 0) {
+          const bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
+          const duration = audio.duration;
+          if (duration > 0) {
+            const percent = (bufferedEnd / duration) * 100;
+            console.log(`Audio loading progress: ${src} - ${percent.toFixed(1)}%`);
+          }
+        }
+      };
+      
+      audio.addEventListener('canplaythrough', onCanPlay);
+      audio.addEventListener('loadeddata', onLoadedData);
+      audio.addEventListener('error', onError);
+      audio.addEventListener('loadstart', onLoadStart);
+      audio.addEventListener('progress', onProgress);
+      
       audio.src = src;
     });
   }
@@ -129,8 +185,14 @@ class AssetLoader {
     // Service images
     Object.values(assets.service).forEach(path => assetPaths.push({ type: 'image', path }));
     
-    // Only preload essential audio files
-    const essentialAudio = ['sfx_start', 'sfx_hit', 'sfx_damage', 'sfx_ko', 'sfx_special', 'sfx_critical', 'sfx_50combo', 'sfx_100combo', 'sfx_Button', 'sfx_skip'];
+    // Only preload essential audio files - skip large combo sounds on mobile
+    const essentialAudio = ['sfx_start', 'sfx_hit', 'sfx_damage', 'sfx_ko', 'sfx_special', 'sfx_critical', 'sfx_Button', 'sfx_skip'];
+    
+    // Add combo sounds only on desktop or good network
+    if (!this.isMobile() || (navigator.connection && navigator.connection.effectiveType === '4g')) {
+      essentialAudio.push('sfx_50combo', 'sfx_100combo');
+    }
+    
     essentialAudio.forEach(key => {
       if (assets.audio[key]) {
         assetPaths.push({ type: 'audio', path: assets.audio[key] });
