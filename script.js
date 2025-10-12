@@ -28,10 +28,37 @@ function isMobile() {
   return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
-// Video path helper function
+// Video path helper function with fallback
 function getVideoPath(baseName) {
   const suffix = isMobile() ? '_m' : '';
   return `assets/video/${baseName}${suffix}.mp4`;
+}
+
+// Video loading with fallback
+function loadVideoWithFallback(videoElement, baseName) {
+  const primaryPath = getVideoPath(baseName);
+  const fallbackPath = `assets/video/${baseName}.mp4`; // Always try original as fallback
+  
+  console.log(`Loading video: ${primaryPath}`);
+  
+  // Try primary path first
+  videoElement.src = primaryPath;
+  videoElement.load();
+  
+  // Add error handler for fallback
+  const handleError = () => {
+    console.warn(`Failed to load ${primaryPath}, trying fallback: ${fallbackPath}`);
+    videoElement.src = fallbackPath;
+    videoElement.load();
+    
+    // If fallback also fails, hide video
+    videoElement.onerror = () => {
+      console.error(`Both video paths failed for ${baseName}`);
+      videoElement.style.display = 'none';
+    };
+  };
+  
+  videoElement.onerror = handleError;
 }
 
 const assets={bg:{neon:"assets/img/backgrounds/bg_neoncity.png",lab:"assets/img/backgrounds/bg_lab.png",arcade:"assets/img/backgrounds/bg_arcade.png"},
@@ -456,7 +483,9 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
   leftEl.style.display="block"; rightEl.style.display="block";
   // enemyName element removed from HTML, no longer needed
   // Setup MV video: MV only (no overlay background) - use mobile version if on mobile
-  videoEl.src=getVideoPath(scene.mv); videoEl.style.display="block"; videoEl.currentTime=0;
+  loadVideoWithFallback(videoEl, scene.mv);
+  videoEl.style.display="block"; 
+  videoEl.currentTime=0;
   
   const trackKey=scene.stage===1?"track_133":"track_149";
   // Initialize game state first
@@ -525,7 +554,16 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
       countdownEl.style.display="none";
       // Start audio and video simultaneously after countdown
       if(audioEl){audioEl.currentTime=0;audioEl.play().catch(e=>console.log("Audio play failed:",e));}
-      videoEl.currentTime=0;videoEl.play().catch(e=>{console.log("Video play failed:",e);videoEl.style.display="none"});
+      videoEl.currentTime=0;
+      videoEl.play().catch(e=>{
+        console.log("Video play failed:",e);
+        // Try to reload video and play again
+        videoEl.load();
+        videoEl.play().catch(e2=>{
+          console.log("Video retry failed:",e2);
+          videoEl.style.display="none";
+        });
+      });
       game.startMs=performance.now();game.started=true;
       updateTimer(); // Start timer with song
       loop();
@@ -975,8 +1013,18 @@ function showEnding(){
   if(window.endingAudio) try{window.endingAudio.pause()}catch(e){}
   if(window.currentDialogAudio) try{window.currentDialogAudio.pause()}catch(e){}
   // play ending video only - use mobile version if on mobile
-  videoEl.src=getVideoPath('ending'); videoEl.currentTime=0; videoEl.muted=false;
-  videoEl.play().catch(()=>{});
+  loadVideoWithFallback(videoEl, 'ending');
+  videoEl.currentTime=0; 
+  videoEl.muted=false;
+  videoEl.play().catch(e=>{
+    console.log("Ending video play failed:",e);
+    // Try to reload and play again
+    videoEl.load();
+    videoEl.play().catch(e2=>{
+      console.log("Ending video retry failed:",e2);
+      videoEl.style.display="none";
+    });
+  });
   videoEl.onended=()=>{
     // hard refresh to fully reset state
     try{location.reload()}catch(e){ sceneIndex=-1; startScene(); }
