@@ -1,6 +1,137 @@
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
+
+// Asset Preloading System
+class AssetLoader {
+  constructor() {
+    this.loadedAssets = new Set();
+    this.totalAssets = 0;
+    this.loadedCount = 0;
+    this.loadingScreen = $('#loadingScreen');
+    this.progressFill = $('#progressFill');
+    this.progressText = $('#progressText');
+    this.loadingStatus = $('#loadingStatus');
+  }
+
+  updateProgress() {
+    const percentage = Math.round((this.loadedCount / this.totalAssets) * 100);
+    this.progressFill.style.width = `${percentage}%`;
+    this.progressText.textContent = `${percentage}%`;
+  }
+
+  updateStatus(status) {
+    this.loadingStatus.textContent = status;
+  }
+
+  async loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+      img.src = src;
+    });
+  }
+
+  async loadAudio(src) {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.oncanplaythrough = () => resolve(audio);
+      audio.onerror = () => reject(new Error(`Failed to load audio: ${src}`));
+      audio.src = src;
+    });
+  }
+
+  async loadVideo(src) {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      video.preload = 'auto';
+      video.oncanplaythrough = () => resolve(video);
+      video.onerror = () => reject(new Error(`Failed to load video: ${src}`));
+      video.src = src;
+    });
+  }
+
+  async preloadAssets() {
+    this.updateStatus('Preparing asset list...');
+    
+    // Collect all asset paths
+    const assetPaths = [];
+    
+    // Background images
+    Object.values(assets.bg).forEach(path => assetPaths.push({ type: 'image', path }));
+    
+    // Character images
+    Object.values(assets.char).forEach(path => assetPaths.push({ type: 'image', path }));
+    Object.values(assets.charDialog).forEach(path => assetPaths.push({ type: 'image', path }));
+    
+    // UI images
+    Object.values(assets.ui).forEach(path => assetPaths.push({ type: 'image', path }));
+    
+    // Service images
+    Object.values(assets.service).forEach(path => assetPaths.push({ type: 'image', path }));
+    
+    // Audio files
+    Object.values(assets.audio).forEach(path => assetPaths.push({ type: 'audio', path }));
+    
+    // Video files
+    Object.values(assets.video).forEach(path => assetPaths.push({ type: 'video', path }));
+    
+    this.totalAssets = assetPaths.length;
+    this.updateStatus(`Loading ${this.totalAssets} assets...`);
+    
+    // Load assets in batches
+    const batchSize = 5;
+    for (let i = 0; i < assetPaths.length; i += batchSize) {
+      const batch = assetPaths.slice(i, i + batchSize);
+      const promises = batch.map(async (asset) => {
+        try {
+          switch (asset.type) {
+            case 'image':
+              await this.loadImage(asset.path);
+              break;
+            case 'audio':
+              await this.loadAudio(asset.path);
+              break;
+            case 'video':
+              await this.loadVideo(asset.path);
+              break;
+          }
+          this.loadedAssets.add(asset.path);
+          this.loadedCount++;
+          this.updateProgress();
+          this.updateStatus(`Loaded ${asset.path.split('/').pop()}...`);
+        } catch (error) {
+          console.warn(`Failed to load ${asset.path}:`, error);
+          this.loadedCount++;
+          this.updateProgress();
+        }
+      });
+      
+      await Promise.all(promises);
+      
+      // Small delay between batches to prevent overwhelming the browser
+      if (i + batchSize < assetPaths.length) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    this.updateStatus('All assets loaded! Starting game...');
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Hide loading screen
+    this.loadingScreen.classList.add('hidden');
+    
+    // Show start screen after loading is complete
+    setTimeout(() => {
+      $('#start').style.display = 'flex';
+    }, 500);
+  }
+}
+
+// Initialize asset loader
+const assetLoader = new AssetLoader();
 const UI_IMG=(k)=>{
   const map={
     start:"assets/img/ui/start.png",
@@ -23,7 +154,7 @@ function renderTextOrImage(el, keyOrText){
 }
 const KEYS = {68:0,70:1,74:2,75:3};
 const PLAYER_LANES=[0,1,2,3];
-// Simple video loading - use original files only
+// Enhanced video loading with preload check
 function loadVideoWithFallback(videoElement, baseName) {
   const videoPath = `assets/video/${baseName}.mp4`;
   
@@ -36,11 +167,31 @@ function loadVideoWithFallback(videoElement, baseName) {
   videoElement.src = videoPath;
   videoElement.load();
   
-  // Simple error handling
-  videoElement.onerror = () => {
-    console.error(`Failed to load video: ${videoPath}`);
-    videoElement.style.display = 'none';
-  };
+  // Wait for video to be ready before playing
+  return new Promise((resolve, reject) => {
+    const handleCanPlay = () => {
+      videoElement.removeEventListener('canplaythrough', handleCanPlay);
+      videoElement.removeEventListener('error', handleError);
+      console.log(`Video ready: ${videoPath}`);
+      resolve();
+    };
+    
+    const handleError = () => {
+      videoElement.removeEventListener('canplaythrough', handleCanPlay);
+      videoElement.removeEventListener('error', handleError);
+      console.error(`Failed to load video: ${videoPath}`);
+      videoElement.style.display = 'none';
+      reject(new Error(`Failed to load video: ${videoPath}`));
+    };
+    
+    videoElement.addEventListener('canplaythrough', handleCanPlay);
+    videoElement.addEventListener('error', handleError);
+    
+    // If video is already loaded, resolve immediately
+    if (videoElement.readyState >= 3) {
+      handleCanPlay();
+    }
+  });
 }
 
 const assets={bg:{neon:"assets/img/backgrounds/bg_neoncity.png",lab:"assets/img/backgrounds/bg_lab.png",arcade:"assets/img/backgrounds/bg_arcade.png"},
@@ -465,7 +616,6 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
   leftEl.style.display="block"; rightEl.style.display="block";
   // enemyName element removed from HTML, no longer needed
   // Setup MV video: MV only (no overlay background) - use mobile version if on mobile
-  loadVideoWithFallback(videoEl, scene.mv);
   videoEl.style.display="block"; 
   videoEl.currentTime=0;
   
@@ -477,10 +627,13 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
   game.bpm=scene.bpm;game.duration=scene.duration;game.finished=false;game.enemyName=scene.enemy;
   const p=generatePattern(scene.bpm,scene.duration).map(n=>({ t:n.t, lane:(n.lane%4), enemy:false, sp:!!n.sp }));game.notes=p;
   
-  // Load audio first, then start countdown
-  loadTrack(trackKey).then((a) => {
+  // Load audio and video, then start countdown
+  Promise.all([
+    loadTrack(trackKey),
+    loadVideoWithFallback(videoEl, scene.mv)
+  ]).then(([a]) => {
     audioEl = a; // capture loaded audio element
-    console.log("Audio loaded, starting countdown", !!audioEl);
+    console.log("Audio and video loaded, starting countdown", !!audioEl);
     // when song finishes and battle not decided, auto-finish based on misses
     if(audioEl){
       audioEl.onended=()=>{try{if(!game.finished){game.finished=true;determineWinner()}}catch(e){}};
@@ -537,6 +690,7 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
       // Start audio and video simultaneously after countdown
       if(audioEl){audioEl.currentTime=0;audioEl.play().catch(e=>console.log("Audio play failed:",e));}
       videoEl.currentTime=0;
+      // Video should already be loaded from Promise.all above
       videoEl.play().catch(e=>{
         console.log("Video play failed:",e);
         videoEl.style.display="none";
@@ -990,11 +1144,15 @@ function showEnding(){
   if(window.endingAudio) try{window.endingAudio.pause()}catch(e){}
   if(window.currentDialogAudio) try{window.currentDialogAudio.pause()}catch(e){}
   // play ending video only - use mobile version if on mobile
-  loadVideoWithFallback(videoEl, 'ending');
   videoEl.currentTime=0; 
   videoEl.muted=false;
-  videoEl.play().catch(e=>{
-    console.log("Ending video play failed:",e);
+  loadVideoWithFallback(videoEl, 'ending').then(() => {
+    videoEl.play().catch(e=>{
+      console.log("Ending video play failed:",e);
+      videoEl.style.display="none";
+    });
+  }).catch(e => {
+    console.log("Ending video load failed:",e);
     videoEl.style.display="none";
   });
   videoEl.onended=()=>{
@@ -1210,8 +1368,25 @@ function addMobileTouchSupport() {
   }, false);
 }
 
-// Initialize mobile support after DOM is loaded
-window.addEventListener("load", () => {
+// Initialize game with asset preloading
+window.addEventListener("load", async () => {
+  // Hide start screen initially
+  $('#start').style.display = 'none';
+  
+  // Start asset preloading
+  try {
+    await assetLoader.preloadAssets();
+  } catch (error) {
+    console.error('Asset preloading failed:', error);
+    // Continue anyway, but show warning
+    $('#loadingStatus').textContent = 'Some assets failed to load, but continuing...';
+    setTimeout(() => {
+      $('#loadingScreen').classList.add('hidden');
+      $('#start').style.display = 'flex';
+    }, 1000);
+  }
+  
+  // Initialize game systems
   init();
   addMobileTouchSupport();
 });
