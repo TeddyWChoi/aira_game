@@ -1,0 +1,107 @@
+
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIRA: Rhythm Breaker</title>
+<link rel="stylesheet" href="style.css"></head><body>
+<div id="game"><div class="header"><div class="title">AIRA: Rhythm Breaker <span class="badge">DEMO</span></div><div class="center"><button style="display:none" class="btn" id="btnPrev">Prev</button><button style="display:none" class="btn" id="btnNextScene">Skip</button><button class="btn" id="btnReplay" style="display:none">Replay</button></div></div>
+<div class="stage"><img id="bg" src="assets/img/backgrounds/bg_neoncity.png"><video id="mv" preload="metadata" muted playsinline></video>
+<div id="start" class="startOverlay"><div class="titleWrap"><img id="titleLogo" src="assets/img/ui/title.png" class="titleNeon" style="width:min(520px,80vw)"><div class="titleGlow"></div></div><img id="btnStart" src="assets/img/ui/gamestart.png" style="width:min(450px,80vw);cursor:pointer"><div id="startHint" class="center" style="gap:6px;color:#9ca3af">Click to Start — Fullscreen recommended (F11)</div></div>
+<div class="playfield" id="playfield"><div class="flash" id="flash"></div><div class="hitline"></div><div id="hitWindowOverlay" class="hitWindowOverlay"></div><div class="lanes" id="lanes"></div>
+<img id="overlayChar" class="overlayChar" alt="overlay">
+<img id="attackEffect" class="attackEffect" alt="effect">
+<img id="charLeft" class="fighter left" alt="AIRA">
+<img id="charRight" class="fighter right" alt="ENEMY">
+  <div class="timer" id="timer">00:00</div>
+  <div class="hud"><div class="center"><div class="combo" id="combo">0</div><img id="comboTwinkle" src="assets/img/ui/twinkle.gif" style="position:absolute;top:-250px;left:50%;transform:translateX(-50%);z-index:9;display:none"></div></div>
+  <div class="gameUI">
+  </div>
+  <button id="skipButton" class="skipButton">SKIP</button>
+  <div class="hpContainer">
+    <div class="hpRow">
+      <div class="hpLabel">HP</div>
+      <div class="hpCombined"><div class="hpSelf" id="hpSelf" style="width:50%"></div><div class="hpEnemy" id="hpEnemy" style="width:50%"></div></div>
+    </div>
+    <div class="spRow">
+      <div class="spLabel">SP</div>
+      <div class="spBar"><div class="spFill" id="spFill" style="width:0%"></div></div>
+    </div>
+  </div>
+  <div class="scoreDisplay">
+    <div class="scoreNumber" id="scoreNumber">0</div>
+    <div class="scoreLabel">SCORE</div>
+  </div>
+<div class="judgement" id="judge"></div><div class="banner" id="banner">READY</div><div class="countdown" id="countdown" style="display:none">3</div></div>
+<div class="dialog" id="dialog"><img id="leftPortrait" class="portrait"><div class="bubble"><div class="namePlate" id="speaker"></div><div class="dialogueText" id="text"></div></div><button id="dialogSkip" class="dlgSkip" title="Skip to Battle">Skip ▶</button><img id="rightPortrait" class="portrait"></div>
+<div class="credits" id="credits"><div class="col left"><img src="assets/img/ui/team.jpg" style="width:100%;height:100%;object-fit:cover;opacity:.9"></div><div class="col right" id="creditText"></div><img class="logo" id="finalLogo" src="assets/img/ui/aitist_logo.png" width="360"></div>
+<div class="endcard" id="endcard">FIN</div>
+<div class="endingMono" id="endingMono" style="display:none">
+  <div class="endingInner">
+    <img id="endingAira" class="endingAira" src="assets/img/characters/aira_ending.png">
+    <div class="endingDialog">
+      <div class="endingName">AIRA</div>
+      <div class="endingText">나는 에이라. 앞으로는 내 감정을 숨기지 않고 노래할 거야.</div>
+    </div>
+  </div>
+  <div class="endingFade" id="endingFade"></div>
+  </div>
+<div class="whiteout" id="whiteout" style="display:none">
+  <img id="whiteLogo" class="whiteLogo" src="assets/img/ui/aitist_logo.png">
+  </div>
+<div class="blackout" id="blackout" style="display:none"><div class="boAlert" id="boAlert">SYSTEM ALERT: 감정 데이터 감지됨. 차단 절차 개시</div></div>
+<!-- Webtoon-style prologue (horizontal pan) -->
+<div class="prologueComic" id="prologueComic" style="display:none">
+  <div class="comicViewport" id="comicViewport">
+    <img id="comicImg" class="comicStrip" src="" alt="prologue comic">
+    <div class="comicGradient"></div>
+    <div class="comicLeftFade"></div>
+  </div>
+  <div class="comicSubtitle"><div class="comicText" id="comicText"></div></div>
+</div>
+<div class="prologue" id="prologue" style="display:none">
+  <div class="proText" id="proText"></div>
+  <div class="alert" id="proAlert">SYSTEM ALERT: 감정 데이터 감지됨. 차단 절차 개시</div>
+</div>
+<div class="specialCut" id="specialCut" style="display:none">
+<img id="specialImg" class="specialImg">
+<div class="specialDim" id="specialDim"></div>
+<div class="specialCircles" id="specialCircles"></div>
+<div class="specialGrade" id="specialGrade"></div>
+<div class="specialStats" id="specialStats"></div>
+<div class="specialActions"><button id="btnRetry" class="specialBtn left">RETRY</button><button id="btnNext" class="specialBtn right">NEXT</button></div>
+</div>
+<div class="resultScreen" id="resultScreen" style="display:none">
+  <img id="serviceImg" class="serviceImg" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(1.1)">
+  <div class="serviceDim" id="serviceDim" style="position:absolute;inset:0;background:#000000;mix-blend-mode:normal"></div>
+  <div class="resultContainer">
+    <div class="resultContent">
+      <div class="resultGrade">
+        <div class="grade" id="resultGrade"><img src="assets/img/ui/a.png" alt="A"></div>
+        <div class="score" id="resultScore">0</div>
+      </div>
+      <div class="resultStats">
+        <h3>RESULT</h3>
+        <div class="statItem perfect">
+          <div class="label">PERFECT</div>
+          <div class="value"><span id="perfectCount">0</span><span class="dots">.........</span></div>
+        </div>
+        <div class="statItem great">
+          <div class="label">GREAT</div>
+          <div class="value"><span id="greatCount">0</span><span class="dots">.........</span></div>
+        </div>
+        <div class="statItem bad">
+          <div class="label">Good</div>
+          <div class="value"><span id="badCount">0</span><span class="dots">.........</span></div>
+        </div>
+        <div class="statItem miss">
+          <div class="label">MISS</div>
+          <div class="value"><span id="missCount">0</span><span class="dots">.........</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="resultButtons">
+      <button id="resultRetry" class="resultBtn retry">RETRY</button>
+      <button id="resultNext" class="resultBtn next">NEXT</button>
+    </div>
+  </div>
+</div></div></div>
+<script src="script.js"></script></body></html>
