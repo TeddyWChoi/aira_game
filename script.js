@@ -23,6 +23,17 @@ function renderTextOrImage(el, keyOrText){
 }
 const KEYS = {68:0,70:1,74:2,75:3};
 const PLAYER_LANES=[0,1,2,3];
+// Mobile detection function
+function isMobile() {
+  return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+}
+
+// Video path helper function
+function getVideoPath(baseName) {
+  const suffix = isMobile() ? '_m' : '';
+  return `assets/video/${baseName}${suffix}.mp4`;
+}
+
 const assets={bg:{neon:"assets/img/backgrounds/bg_neoncity.png",lab:"assets/img/backgrounds/bg_lab.png",arcade:"assets/img/backgrounds/bg_arcade.png"},
 char:{AIRA:"assets/img/characters/aira2.png",AIRA_HIT:"assets/img/characters/aira_x.png",AIRA_SPECIAL:"assets/img/characters/aira3.png",FIX:"assets/img/characters/fix2.png",FIX_HIT:"assets/img/characters/fix_x.png",FIX_SPECIAL:"assets/img/characters/fix3.png",GLICH:"assets/img/characters/glitch2.png","GL!TCH":"assets/img/characters/glitch2.png",GLICH_HIT:"assets/img/characters/glitch_x.png","GL!TCH_SPECIAL":"assets/img/characters/glitch3.png",AIRA_END:"assets/img/characters/aira_ending.png"},
 charDialog:{AIRA:"assets/img/characters/aira2.png",FIX:"assets/img/characters/fix2.png",GLICH:"assets/img/characters/glitch2.png","GL!TCH":"assets/img/characters/glitch2.png",AIRA_END:"assets/img/characters/aira_ending.png"},
@@ -444,8 +455,8 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
   leftEl.src=assets.char.AIRA; rightEl.src=assets.char[scene.enemy];
   leftEl.style.display="block"; rightEl.style.display="block";
   // enemyName element removed from HTML, no longer needed
-  // Setup MV video: MV only (no overlay background)
-  videoEl.src=assets.video[scene.mv]; videoEl.style.display="block"; videoEl.currentTime=0;
+  // Setup MV video: MV only (no overlay background) - use mobile version if on mobile
+  videoEl.src=getVideoPath(scene.mv); videoEl.style.display="block"; videoEl.currentTime=0;
   
   const trackKey=scene.stage===1?"track_133":"track_149";
   // Initialize game state first
@@ -963,8 +974,8 @@ function showEnding(){
   // stop any music
   if(window.endingAudio) try{window.endingAudio.pause()}catch(e){}
   if(window.currentDialogAudio) try{window.currentDialogAudio.pause()}catch(e){}
-  // play ending video only
-  videoEl.src=assets.video.ending; videoEl.currentTime=0; videoEl.muted=false;
+  // play ending video only - use mobile version if on mobile
+  videoEl.src=getVideoPath('ending'); videoEl.currentTime=0; videoEl.muted=false;
   videoEl.play().catch(()=>{});
   videoEl.onended=()=>{
     // hard refresh to fully reset state
