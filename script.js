@@ -12,6 +12,8 @@ class AssetLoader {
     this.progressFill = $('#progressFill');
     this.progressText = $('#progressText');
     this.loadingStatus = $('#loadingStatus');
+    this.preloadedVideos = new Map(); // Cache for preloaded videos
+    this.preloadedAudios = new Map(); // Cache for preloaded audios
   }
 
   updateProgress() {
@@ -37,7 +39,11 @@ class AssetLoader {
     return new Promise((resolve, reject) => {
       const audio = new Audio();
       audio.preload = 'auto';
-      audio.oncanplaythrough = () => resolve(audio);
+      audio.oncanplaythrough = () => {
+        // Store the loaded audio data in cache
+        this.preloadedAudios.set(src, audio);
+        resolve(audio);
+      };
       audio.onerror = () => reject(new Error(`Failed to load audio: ${src}`));
       audio.src = src;
     });
@@ -45,10 +51,22 @@ class AssetLoader {
 
   async loadVideo(src) {
     return new Promise((resolve, reject) => {
+      // Create a temporary video element for preloading
       const video = document.createElement('video');
       video.preload = 'auto';
-      video.oncanplaythrough = () => resolve(video);
-      video.onerror = () => reject(new Error(`Failed to load video: ${src}`));
+      video.muted = true; // Mute for preloading
+      video.oncanplaythrough = () => {
+        video.removeEventListener('canplaythrough', video.oncanplaythrough);
+        video.removeEventListener('error', video.onerror);
+        // Store the loaded video data in cache
+        this.preloadedVideos.set(src, video);
+        resolve(video);
+      };
+      video.onerror = () => {
+        video.removeEventListener('canplaythrough', video.oncanplaythrough);
+        video.removeEventListener('error', video.onerror);
+        reject(new Error(`Failed to load video: ${src}`));
+      };
       video.src = src;
     });
   }
@@ -159,6 +177,15 @@ function loadVideoWithFallback(videoElement, baseName) {
   const videoPath = `assets/video/${baseName}.mp4`;
   
   console.log(`Loading video: ${videoPath}`);
+  
+  // Check if video was preloaded
+  if (assetLoader.preloadedVideos.has(videoPath)) {
+    console.log(`Using preloaded video: ${videoPath}`);
+    const preloadedVideo = assetLoader.preloadedVideos.get(videoPath);
+    videoElement.src = videoPath;
+    videoElement.load();
+    return Promise.resolve();
+  }
   
   // Clear any previous error handlers
   videoElement.onerror = null;
@@ -589,7 +616,23 @@ function generatePattern(bpm,duration){
   return notes
 }
 function createAudio(src){const a=new Audio();a.src=src;return a}
-function loadTrack(name){return new Promise(res=>{const a=createAudio(assets.audio[name]);a.addEventListener("canplaythrough",()=>res(a),{once:true});a.addEventListener("error",()=>res(null),{once:true});a.load()})}
+function loadTrack(name){
+  const audioPath = assets.audio[name];
+  
+  // Check if audio was preloaded
+  if (assetLoader.preloadedAudios.has(audioPath)) {
+    console.log(`Using preloaded audio: ${audioPath}`);
+    return Promise.resolve(assetLoader.preloadedAudios.get(audioPath));
+  }
+  
+  // Fallback to original loading method
+  return new Promise(res=>{
+    const a=createAudio(audioPath);
+    a.addEventListener("canplaythrough",()=>res(a),{once:true});
+    a.addEventListener("error",()=>res(null),{once:true});
+    a.load()
+  })
+}
 function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMotion();$("#dialog").style.display="none";$("#playfield").style.display="block";
   // Restore any gameplay UI that may have been hidden by post-battle cut
   const pf=$("#playfield"); if(pf){pf.classList.remove('overlayMode'); pf.style.zIndex=''}
