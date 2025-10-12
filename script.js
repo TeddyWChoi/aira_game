@@ -90,11 +90,16 @@ class AssetLoader {
     // Service images
     Object.values(assets.service).forEach(path => assetPaths.push({ type: 'image', path }));
     
-    // Audio files
-    Object.values(assets.audio).forEach(path => assetPaths.push({ type: 'audio', path }));
+    // Only preload essential audio files
+    const essentialAudio = ['sfx_start', 'sfx_hit', 'sfx_damage', 'sfx_ko', 'sfx_special', 'sfx_critical', 'sfx_50combo', 'sfx_100combo', 'sfx_Button', 'sfx_skip'];
+    essentialAudio.forEach(key => {
+      if (assets.audio[key]) {
+        assetPaths.push({ type: 'audio', path: assets.audio[key] });
+      }
+    });
     
-    // Video files
-    Object.values(assets.video).forEach(path => assetPaths.push({ type: 'video', path }));
+    // Skip video files for now - load them on demand
+    // Object.values(assets.video).forEach(path => assetPaths.push({ type: 'video', path }));
     
     this.totalAssets = assetPaths.length;
     this.updateStatus(`Loading ${this.totalAssets} assets...`);
@@ -172,20 +177,11 @@ function renderTextOrImage(el, keyOrText){
 }
 const KEYS = {68:0,70:1,74:2,75:3};
 const PLAYER_LANES=[0,1,2,3];
-// Enhanced video loading with preload check
+// Simple video loading
 function loadVideoWithFallback(videoElement, baseName) {
   const videoPath = `assets/video/${baseName}.mp4`;
   
   console.log(`Loading video: ${videoPath}`);
-  
-  // Check if video was preloaded
-  if (assetLoader.preloadedVideos.has(videoPath)) {
-    console.log(`Using preloaded video: ${videoPath}`);
-    const preloadedVideo = assetLoader.preloadedVideos.get(videoPath);
-    videoElement.src = videoPath;
-    videoElement.load();
-    return Promise.resolve();
-  }
   
   // Clear any previous error handlers
   videoElement.onerror = null;
@@ -671,15 +667,27 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
   const p=generatePattern(scene.bpm,scene.duration).map(n=>({ t:n.t, lane:(n.lane%4), enemy:false, sp:!!n.sp }));game.notes=p;
   
   // Load audio and video, then start countdown
-  Promise.all([
+  Promise.allSettled([
     loadTrack(trackKey),
     loadVideoWithFallback(videoEl, scene.mv)
-  ]).then(([a]) => {
-    audioEl = a; // capture loaded audio element
-    console.log("Audio and video loaded, starting countdown", !!audioEl);
-    // when song finishes and battle not decided, auto-finish based on misses
-    if(audioEl){
-      audioEl.onended=()=>{try{if(!game.finished){game.finished=true;determineWinner()}}catch(e){}};
+  ]).then(([audioResult, videoResult]) => {
+    // Handle audio result
+    if (audioResult.status === 'fulfilled' && audioResult.value) {
+      audioEl = audioResult.value;
+      console.log("Audio loaded successfully", !!audioEl);
+      // when song finishes and battle not decided, auto-finish based on misses
+      if(audioEl){
+        audioEl.onended=()=>{try{if(!game.finished){game.finished=true;determineWinner()}}catch(e){}};
+      }
+    } else {
+      console.error("Audio loading failed:", audioResult.reason);
+    }
+    
+    // Handle video result
+    if (videoResult.status === 'fulfilled') {
+      console.log("Video loaded successfully");
+    } else {
+      console.error("Video loading failed:", videoResult.reason);
     }
     
   // Initialize timer
@@ -731,10 +739,22 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
     setTimeout(()=>{
       countdownEl.style.display="none";
       // Start audio and video simultaneously after countdown
-      if(audioEl){audioEl.currentTime=0;audioEl.play().catch(e=>console.log("Audio play failed:",e));}
+      if(audioEl){
+        console.log("Starting audio playback");
+        audioEl.currentTime=0;
+        audioEl.play().then(() => {
+          console.log("Audio started successfully");
+        }).catch(e=>{
+          console.log("Audio play failed:",e);
+        });
+      } else {
+        console.error("No audio element available for playback");
+      }
+      
       videoEl.currentTime=0;
-      // Video should already be loaded from Promise.all above
-      videoEl.play().catch(e=>{
+      videoEl.play().then(() => {
+        console.log("Video started successfully");
+      }).catch(e=>{
         console.log("Video play failed:",e);
         videoEl.style.display="none";
       });
