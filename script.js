@@ -23,42 +23,24 @@ function renderTextOrImage(el, keyOrText){
 }
 const KEYS = {68:0,70:1,74:2,75:3};
 const PLAYER_LANES=[0,1,2,3];
-// Mobile detection function
-function isMobile() {
-  return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-}
-
-// Video path helper function with fallback
-function getVideoPath(baseName) {
-  const suffix = isMobile() ? '_m' : '';
-  return `assets/video/${baseName}${suffix}.mp4`;
-}
-
-// Video loading with fallback
+// Simple video loading - use original files only
 function loadVideoWithFallback(videoElement, baseName) {
-  const primaryPath = getVideoPath(baseName);
-  const fallbackPath = `assets/video/${baseName}.mp4`; // Always try original as fallback
+  const videoPath = `assets/video/${baseName}.mp4`;
   
-  console.log(`Loading video: ${primaryPath}`);
+  console.log(`Loading video: ${videoPath}`);
   
-  // Try primary path first
-  videoElement.src = primaryPath;
+  // Clear any previous error handlers
+  videoElement.onerror = null;
+  
+  // Set source and load
+  videoElement.src = videoPath;
   videoElement.load();
   
-  // Add error handler for fallback
-  const handleError = () => {
-    console.warn(`Failed to load ${primaryPath}, trying fallback: ${fallbackPath}`);
-    videoElement.src = fallbackPath;
-    videoElement.load();
-    
-    // If fallback also fails, hide video
-    videoElement.onerror = () => {
-      console.error(`Both video paths failed for ${baseName}`);
-      videoElement.style.display = 'none';
-    };
+  // Simple error handling
+  videoElement.onerror = () => {
+    console.error(`Failed to load video: ${videoPath}`);
+    videoElement.style.display = 'none';
   };
-  
-  videoElement.onerror = handleError;
 }
 
 const assets={bg:{neon:"assets/img/backgrounds/bg_neoncity.png",lab:"assets/img/backgrounds/bg_lab.png",arcade:"assets/img/backgrounds/bg_arcade.png"},
@@ -557,12 +539,7 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
       videoEl.currentTime=0;
       videoEl.play().catch(e=>{
         console.log("Video play failed:",e);
-        // Try to reload video and play again
-        videoEl.load();
-        videoEl.play().catch(e2=>{
-          console.log("Video retry failed:",e2);
-          videoEl.style.display="none";
-        });
+        videoEl.style.display="none";
       });
       game.startMs=performance.now();game.started=true;
       updateTimer(); // Start timer with song
@@ -1018,12 +995,7 @@ function showEnding(){
   videoEl.muted=false;
   videoEl.play().catch(e=>{
     console.log("Ending video play failed:",e);
-    // Try to reload and play again
-    videoEl.load();
-    videoEl.play().catch(e2=>{
-      console.log("Ending video retry failed:",e2);
-      videoEl.style.display="none";
-    });
+    videoEl.style.display="none";
   });
   videoEl.onended=()=>{
     // hard refresh to fully reset state
