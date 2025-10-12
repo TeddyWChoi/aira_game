@@ -17,9 +17,10 @@ class AssetLoader {
   }
 
   updateProgress() {
-    const percentage = Math.round((this.loadedCount / this.totalAssets) * 100);
-    this.progressFill.style.width = `${percentage}%`;
-    this.progressText.textContent = `${percentage}%`;
+    const percentage = (this.loadedCount / this.totalAssets) * 100;
+    const percentageRounded = Math.round(percentage * 100) / 100; // Round to 2 decimal places
+    this.progressFill.style.width = `${percentageRounded}%`;
+    this.progressText.textContent = `${percentageRounded.toFixed(2)}%`;
   }
 
   updateStatus(status) {
@@ -891,11 +892,29 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
       }
       
       videoEl.currentTime=0;
+      
+      // Mobile video playback improvements
+      videoEl.muted = true; // Start muted for autoplay
+      videoEl.playsInline = true;
+      videoEl.setAttribute('playsinline', 'true');
+      videoEl.setAttribute('webkit-playsinline', 'true');
+      
       videoEl.play().then(() => {
         console.log("Video started successfully");
+        // Unmute after successful play
+        setTimeout(() => {
+          videoEl.muted = false;
+        }, 100);
       }).catch(e=>{
         console.log("Video play failed:",e);
-        videoEl.style.display="none";
+        // Try again with muted
+        videoEl.muted = true;
+        videoEl.play().then(() => {
+          console.log("Video started muted successfully");
+        }).catch(e2 => {
+          console.log("Video retry failed:",e2);
+          videoEl.style.display="none";
+        });
       });
       game.startMs=performance.now();game.started=true;
       updateTimer(); // Start timer with song
@@ -1519,28 +1538,44 @@ function addMobileTouchSupport() {
   // Add touch event listeners for mobile devices
   const lanes = document.querySelectorAll('.lane');
   
+  // Use more efficient touch handling
   lanes.forEach((lane, index) => {
-    // Touch start
+    let touchStartTime = 0;
+    let isPressed = false;
+    
+    // Touch start - immediate response
     lane.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      const keyEvent = new KeyboardEvent('keydown', {
-        keyCode: [68, 70, 74, 75][index], // D, F, J, K
-        code: ['KeyD', 'KeyF', 'KeyJ', 'KeyK'][index],
-        bubbles: true
-      });
-      document.dispatchEvent(keyEvent);
-    });
+      e.stopPropagation();
+      
+      if (isPressed) return; // Prevent duplicate events
+      isPressed = true;
+      touchStartTime = performance.now();
+      
+      // Direct key handling instead of creating events
+      const keyCode = [68, 70, 74, 75][index];
+      onKey({ keyCode, preventDefault: () => {} });
+    }, { passive: false });
     
     // Touch end
     lane.addEventListener('touchend', (e) => {
       e.preventDefault();
-      const keyEvent = new KeyboardEvent('keyup', {
-        keyCode: [68, 70, 74, 75][index], // D, F, J, K
-        code: ['KeyD', 'KeyF', 'KeyJ', 'KeyK'][index],
-        bubbles: true
-      });
-      document.dispatchEvent(keyEvent);
-    });
+      e.stopPropagation();
+      
+      if (!isPressed) return;
+      isPressed = false;
+      
+      // Direct key handling for keyup
+      const keyCode = [68, 70, 74, 75][index];
+      // Note: We don't have a keyup handler, but this prevents stuck keys
+    }, { passive: false });
+    
+    // Touch cancel - important for mobile
+    lane.addEventListener('touchcancel', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      isPressed = false;
+    }, { passive: false });
   });
   
   // Prevent default touch behaviors only for lanes
