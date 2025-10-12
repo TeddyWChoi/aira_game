@@ -26,11 +26,29 @@ class AssetLoader {
     this.loadingStatus.textContent = status;
   }
 
+  isMobile() {
+    return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  }
+
   async loadImage(src) {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error(`Failed to load image: ${src}`));
+      
+      // Set timeout for mobile devices
+      const timeout = setTimeout(() => {
+        reject(new Error(`Image loading timeout: ${src}`));
+      }, 10000); // 10 second timeout
+      
+      img.onload = () => {
+        clearTimeout(timeout);
+        resolve(img);
+      };
+      
+      img.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error(`Failed to load image: ${src}`));
+      };
+      
       img.src = src;
     });
   }
@@ -87,8 +105,10 @@ class AssetLoader {
     // UI images
     Object.values(assets.ui).forEach(path => assetPaths.push({ type: 'image', path }));
     
-    // Service images
-    Object.values(assets.service).forEach(path => assetPaths.push({ type: 'image', path }));
+    // Service images - skip on mobile due to large file sizes
+    if (!this.isMobile()) {
+      Object.values(assets.service).forEach(path => assetPaths.push({ type: 'image', path }));
+    }
     
     // Only preload essential audio files
     const essentialAudio = ['sfx_start', 'sfx_hit', 'sfx_damage', 'sfx_ko', 'sfx_special', 'sfx_critical', 'sfx_50combo', 'sfx_100combo', 'sfx_Button', 'sfx_skip'];
@@ -104,8 +124,8 @@ class AssetLoader {
     this.totalAssets = assetPaths.length;
     this.updateStatus(`Loading ${this.totalAssets} assets...`);
     
-    // Load assets in batches
-    const batchSize = 5;
+    // Load assets in batches - smaller batches on mobile
+    const batchSize = this.isMobile() ? 2 : 5;
     for (let i = 0; i < assetPaths.length; i += batchSize) {
       const batch = assetPaths.slice(i, i + batchSize);
       const promises = batch.map(async (asset) => {
@@ -129,14 +149,17 @@ class AssetLoader {
           console.warn(`Failed to load ${asset.path}:`, error);
           this.loadedCount++;
           this.updateProgress();
+          // Continue loading even if some assets fail
+          this.updateStatus(`Skipped ${asset.path.split('/').pop()} (failed to load)...`);
         }
       });
       
       await Promise.all(promises);
       
-      // Small delay between batches to prevent overwhelming the browser
+      // Delay between batches - longer on mobile
       if (i + batchSize < assetPaths.length) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+        const delay = this.isMobile() ? 300 : 100;
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
     
