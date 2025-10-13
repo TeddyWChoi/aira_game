@@ -731,23 +731,47 @@ function generatePattern(bpm,duration){
       if(Math.random()<0.35){ b+=1; t+=beat; continue }
     }
     
-    // sometimes spawn a chord (2-3 notes at same time)
-    const lanes=[0,1,2,3];
-    const baseLane=Math.floor(Math.random()*4);
-    const chordChance=Math.random();
-    const isChord=chordChance<0.28; // 28% chance
-    const isTriple= isChord && Math.random()<0.15;
-    // normal (possibly chord) tap notes
-    notes.push({t,lane:baseLane});
-    if(isChord){
+  // sometimes spawn a chord (2 notes at same time) — but avoid during single-line runs
+  const lanes=[0,1,2,3];
+  const baseLane=Math.floor(Math.random()*4);
+  const chordChance=Math.random();
+  const isChord=chordChance<0.18; // lower chance to reduce clutter
+  // normal (possibly chord) tap notes
+  notes.push({t,lane:baseLane});
+  if(isChord){
       const avail=lanes.filter(l=>l!==baseLane);
       const l2=avail.splice(Math.floor(Math.random()*avail.length),1)[0];
       notes.push({t,lane:l2});
-      if(isTriple){ const l3=avail[Math.floor(Math.random()*avail.length)]; if(l3!=null) notes.push({t,lane:l3}) }
-    }
-    // occasional quick-follow note
-    if(Math.random()<0.25){ notes.push({t:t+0.5*beat,lane:(baseLane+1)%4}) }
+  }
+  // occasional quick-follow note (less frequent to keep single-line clarity)
+  if(Math.random()<0.15){ notes.push({t:t+0.5*beat,lane:(baseLane+1)%4}) }
     b+=1; t+=beat
+  }
+  // Post-process: inject special (yellow) notes by converting existing notes
+  // Never spawn extra entities; flip one of the existing notes to sp within spaced intervals
+  const minSpecialGapSec = 6; // minimum seconds between special notes
+  let nextSpecialEligibleTime = 2*beat; // start after intro delay
+  for(let i=0;i<notes.length;i++){
+    const n = notes[i];
+    if(n.t < nextSpecialEligibleTime) continue;
+    // With small probability, mark this existing note as special
+    if(Math.random() < 0.12){
+      n.sp = true;
+      nextSpecialEligibleTime = n.t + minSpecialGapSec; // enforce gap in seconds
+    }
+  }
+  // Ensure no two specials share the exact same timestamp (safety)
+  const seenAtTime = new Map();
+  for(const n of notes){
+    const key = Math.round(n.t*1000); // ms bucket
+    if(n.sp){
+      if(seenAtTime.has(key)){
+        // If another special already at this instant, demote this one to normal
+        n.sp = false;
+      } else {
+        seenAtTime.set(key,true);
+      }
+    }
   }
   return notes
 }
