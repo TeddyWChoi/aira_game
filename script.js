@@ -454,6 +454,10 @@ const SCENES=[{type:"start"},
 {type:"ending"}];
 let sceneIndex=-1,audioEl=null,videoEl=$("#mv"),inputSuppressUntil=0;
 const game={started:false,travelTime:1.35,hitWindow:0.24,startMs:0,notes:[],combo:0,score:0,hpSelf:50,hpEnemy:50,hpLock:false,enemyName:"",finished:false,bpm:133,duration:120,missCount:0,perfectCount:0,greatCount:0,goodCount:0,maxCombo:0,songEnded:false,sp:0,_timerTo:null,specialCount:0,specialAttempts:0,lastNoteHit:false};
+// Defrag mode runtime state
+const defrag={enabled:false,notes:[],speed:420, // px per second
+  judgeX:0, overload:false, gridCols:32, gridRows:18,
+  colors:{perfect:'#3b82f6',great:'#22c55e',good:'#facc15',miss:'#ef4444',overload:'#8b5cf6'}}
 function setBG(key){$("#bg").src=assets.bg[key]}
 function showBackground(show){$("#bg").style.display=show?"block":"none"}
 function activateBgMotion(){const bg=document.getElementById('bg');if(!bg)return;bg.classList.add('bgAlive');if(!document.getElementById('bgOverlay')){const ov=document.createElement('div');ov.id='bgOverlay';ov.className='bgOverlay';bg.parentElement.appendChild(ov)}}
@@ -806,6 +810,16 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
   const scoreDisplay=$(".scoreDisplay"); if(scoreDisplay){scoreDisplay.style.display='flex'; scoreDisplay.style.visibility='visible'}
   const skipBtn=$("#skipButton"); if(skipBtn){skipBtn.style.display='block'}
   setupLanes();
+  // Enable defrag mode UI
+  defrag.enabled=true; const track=$('#defragTrack'); if(track){track.style.display='block'}
+  const grid = document.getElementById('defragGrid'); if(grid){
+    if(!grid.hasChildNodes()){
+      for(let r=0;r<defrag.gridRows;r++){
+        for(let c=0;c<defrag.gridCols;c++){ const cell=document.createElement('div'); cell.className='cell'; grid.appendChild(cell) }
+      }
+    }
+  }
+  const jl=$('#judgeLine'); if(jl){ const rect=jl.getBoundingClientRect(); defrag.judgeX=rect.left + rect.width/2 }
   // Build defrag grid once per battle (A style)
   (function(){
     const grid = document.getElementById('defragGrid');
@@ -959,6 +973,7 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
       });
       game.startMs=performance.now();game.started=true;
       updateTimer(); // Start timer with song
+      defragStart();
       loop();
     },500);
   },3000);
@@ -995,6 +1010,56 @@ function endBattle(win){
       })
     }, 1000); // 1초 딜레이
   }, 100);
+}
+// Generate horizontal notes for defrag mode (time-based spawn)
+function defragSpawnPattern(bpm,duration){
+  const beat=60/bpm; const totalBeats=Math.floor(duration/beat)-2; const arr=[]; let t=2*beat;
+  for(let b=0;b<totalBeats;b++){
+    if(Math.random()<0.28){ t+=beat; continue }
+    arr.push({t}); t+=beat;
+    if(Math.random()<0.18){ arr.push({t:t+0.5*beat}) }
+  }
+  return arr
+}
+
+function defragStart(){
+  defrag.notes = defragSpawnPattern(game.bpm, game.duration).map(n=>({t:n.t, x:window.innerWidth*0.85, hit:false, judged:false}));
+}
+
+function defragUpdate(dt){ if(!defrag.enabled) return; const cont=$('#defragNotes'); if(!cont) return;
+  const nowT=seconds(); const judgeX = window.innerWidth*0.5; // center line
+  for(const n of defrag.notes){
+    if(!n.el){ const el=document.createElement('div'); el.className='defragNote'; el.style.background='#6b7280'; cont.appendChild(el); n.el=el }
+    const aliveTime = Math.max(0, nowT - (n.t - game.travelTime));
+    n.x = window.innerWidth*0.85 - defrag.speed * aliveTime;
+    n.el.style.left = n.x + 'px';
+    if(!n.judged && Math.abs(n.x-judgeX) < 6){ // auto judgement window visualization
+      // do nothing; wait for input
+    }
+    if(n.x < window.innerWidth*0.12 && !n.judged){ // passed judge line -> miss
+      n.judged=true; paintGrid('miss'); if(n.el){n.el.remove()} damageSelfSilent(1)
+    }
+  }
+}
+
+function defragHit(){ if(!defrag.enabled) return; const judgeX= window.innerWidth*0.5; const t=seconds();
+  // find nearest note around judge
+  let best=null, bestDx=1e9, bestDt=1e9; for(const n of defrag.notes){ if(n.judged) continue; const aliveTime=Math.max(0, t - (n.t - game.travelTime)); const x=window.innerWidth*0.85 - defrag.speed*aliveTime; const dx=Math.abs(x-judgeX); const dt=Math.abs(t-n.t); if(dx<bestDx){best=n;bestDx=dx;bestDt=dt} }
+  if(!best){ paintGrid('miss'); return }
+  best.judged=true; if(best.el){best.el.remove()}
+  if(bestDt<=0.03){ paintGrid('perfect'); damageEnemy(3,'PERFECT') }
+  else if(bestDt<=0.06){ paintGrid('great'); damageEnemy(2,'GREAT') }
+  else { paintGrid('good'); damageEnemy(1,'GOOD') }
+}
+
+function paintGrid(kind){ const grid=$('#defragGrid'); if(!grid) return; const cells=grid.children; if(!cells||!cells.length) return;
+  const color= defrag.colors[kind]||'#6b7280';
+  // fill next empty cell left-to-right, top-to-bottom
+  let painted=false; for(let i=0;i<cells.length;i++){ const cell=cells[i]; if(!cell.dataset.filled){ cell.style.background=color; cell.dataset.filled='1'; painted=true; break } }
+  if(!painted){ // overflow -> overload
+    const ov=$('#defragOverload'); if(ov){ ov.style.display='block'; ov.style.background=defrag.colors.overload; setTimeout(()=>ov.style.display='none',700) }
+    for(const cell of cells){ cell.style.background=defrag.colors.overload }
+  }
 }
 
 function showPostBattleScene(win,isStage2){return new Promise(res=>{
@@ -1152,7 +1217,8 @@ function updateNotes(){
     
     // Batch transform updates
     updates.push(() => {
-      n.el.style.transform=`translateY(${y}px)`;
+      // Hide native note visuals; we only use it as a logical carrier for grid tint
+      n.el.style.transform=`translateY(${y}px)`; n.el.style.opacity='0';
       // Map note Y to grid row and briefly tint that cell to simulate defrag write
       if(grid && cells && cells.length){
         const rows=18, cols=32;
@@ -1385,7 +1451,7 @@ function onKey(e){if(!game.started)return;const lane=KEYS[e.keyCode]??-1;if(e.co
 
 // keyup handler no longer needed (hold notes removed)
 // enemyAI removed per design (no opponent attacks)
-function loop(){if(!game.started)return;updateNotes();requestAnimationFrame(loop)}
+function loop(){if(!game.started)return;updateNotes();defragUpdate(0);requestAnimationFrame(loop)}
 function startScene(){
   // Stop all audio
   if(window.endingAudio) window.endingAudio.pause();
@@ -1700,6 +1766,8 @@ window.addEventListener("load", async () => {
   // Initialize game systems
   init();
   addMobileTouchSupport();
+  // Bind Space for defrag mode
+  document.addEventListener('keydown',(e)=>{ if(e.code==='Space'){ e.preventDefault(); defragHit() }})
 });
 
 
