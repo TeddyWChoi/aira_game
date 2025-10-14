@@ -1,34 +1,10 @@
 
 <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AIRA: Rhythm Breaker</title>
+<title>AIRA: Rhythm Breaker — Battle Edition</title>
 <link rel="stylesheet" href="style.css"></head><body>
-<div id="game">
-<!-- Loading Screen -->
-<div id="loadingScreen" class="loadingScreen">
-  <div class="loadingContent">
-    <img id="loadingLogo" src="assets/img/ui/title.png" class="loadingLogo">
-    <div class="loadingText">Loading Assets...</div>
-    <div class="loadingProgress">
-      <div class="progressBar">
-        <div class="progressFill" id="progressFill"></div>
-      </div>
-      <div class="progressText" id="progressText">0%</div>
-    </div>
-    <div class="loadingStatus" id="loadingStatus">Preparing game assets...</div>
-  </div>
-</div>
-
-<div class="header"><div class="title">AIRA: Rhythm Breaker <span class="badge">DEMO</span></div><div class="center"><button style="display:none" class="btn" id="btnPrev">Prev</button><button style="display:none" class="btn" id="btnNextScene">Skip</button><button class="btn" id="btnReplay" style="display:none">Replay</button></div></div>
+<div id="game"><div class="header"><div class="title">AIRA: Rhythm Breaker <span class="badge">DEMO</span></div><div class="center"><button style="display:none" class="btn" id="btnPrev">Prev</button><button style="display:none" class="btn" id="btnNextScene">Skip</button><button class="btn" id="btnReplay" style="display:none">Replay</button></div></div>
 <div class="stage"><img id="bg" src="assets/img/backgrounds/bg_neoncity.png"><video id="mv" preload="metadata" muted playsinline></video>
-<!-- Defrag Mode UI -->
-<div id="defragTrack" class="defragTrack" style="display:none">
-  <div class="judgeLine" id="judgeLine"></div>
-  <div class="defragGrid" id="defragGrid"></div>
-  <div class="defragNotes" id="defragNotes"></div>
-  <div class="defragOverload" id="defragOverload" style="display:none">OVERLOAD</div>
-  <div class="defragHint" id="defragHint">Press SPACE</div>
-  </div>
 <div id="start" class="startOverlay"><div class="titleWrap"><img id="titleLogo" src="assets/img/ui/title.png" class="titleNeon" style="width:min(520px,80vw)"><div class="titleGlow"></div></div><img id="btnStart" src="assets/img/ui/gamestart.png" style="width:min(450px,80vw);cursor:pointer"><div id="startHint" class="center" style="gap:6px;color:#9ca3af">Click to Start — Fullscreen recommended (F11)</div></div>
 <div class="playfield" id="playfield"><div class="flash" id="flash"></div><div class="hitline"></div><div id="hitWindowOverlay" class="hitWindowOverlay"></div><div class="lanes" id="lanes"></div>
 <img id="overlayChar" class="overlayChar" alt="overlay">

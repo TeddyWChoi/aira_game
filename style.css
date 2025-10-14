@@ -44,23 +44,8 @@ opacity:.55;z-index:1;animation:glowPulse 2.8s ease-in-out infinite}
 #text{display:block;text-align:center;margin:0 auto}
 .bubble .decorativeIcon{position:absolute;bottom:12px;right:16px;width:24px;height:24px;background:linear-gradient(135deg, #06b6d4, #0891b2);border-radius:4px;opacity:0.8;box-shadow:0 2px 8px rgba(6,182,212,.3)}
 .playfield{position:absolute;left:0;top:0;transform:none;width:100vw;height:100vh;border-radius:0;outline:none;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.02));overflow:hidden;display:none;z-index:6}
-.playfield::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 10%, rgba(59,130,246,.08), transparent 60%),radial-gradient(120% 80% at 50% 120%, rgba(0,0,0,.36), transparent 40%);pointer-events:none; z-index:0}
-.defragGrid{position:absolute;left:15%;right:15%;top:0;bottom:140px;display:grid;grid-template-columns:repeat(32,1fr);grid-auto-rows:1fr;gap:2px;z-index:1;pointer-events:none}
-.defragGrid .cell{background:rgba(255,255,255,.06);border-radius:2px;transition:background-color .15s ease}
-.defragTrack{position:absolute;left:0;right:0;top:0;bottom:140px;z-index:2}
-.defragNotes{position:absolute;inset:0;pointer-events:none;will-change:transform}
-.defragNote{position:absolute;top:50%;transform:translate3d(0,-50%,0);width:18px;height:90px;border-radius:4px;box-shadow:0 0 12px rgba(0,0,0,.3);will-change:transform}
-.judgeLine{position:absolute;top:50%;left:15%;right:15%;height:2px;background:rgba(255,255,255,.5);box-shadow:0 0 12px rgba(255,255,255,.35);transform:translateY(-50%)}
-.defragOverload{position:absolute;top:8%;left:50%;transform:translateX(-50%);padding:6px 14px;border-radius:10px;background:rgba(109,40,217,.9);color:#fff;font-weight:900;letter-spacing:1px;box-shadow:0 6px 18px rgba(109,40,217,.35)}
-.defragHint{position:absolute;bottom:12%;left:50%;transform:translateX(-50%);color:#9ca3af;font-weight:600}
 .playfield.overlayMode{background:transparent;outline:none;box-shadow:none}
-.lanes{position:absolute;left:15%;right:15%;top:0;bottom:0;display:none;grid-template-columns:repeat(8,1fr);gap:10px;padding:16px 16px 140px;z-index:2}
-.scannerBar,.scannerTrail{display:none}
-.lane .note{width:16px;height:16px;border-radius:3px;background:transparent;border:none;box-shadow:none;opacity:0}
-.lane .note.sp{opacity:0}
-/* Special (D style) - grid reassemble animation */
-.defragBurst{animation:defragBurst .8s ease-out forwards}
-@keyframes defragBurst{0%{transform:scale(1);filter:brightness(1)}40%{transform:scale(1.03);filter:brightness(1.3)}100%{transform:scale(1);filter:brightness(1)}}
+.lanes{position:absolute;left:15%;right:15%;top:0;bottom:0;display:grid;grid-template-columns:repeat(8,1fr);gap:10px;padding:16px 16px 140px;z-index:2}
 .lanes.playerOnly{grid-template-columns:0.5fr 0.5fr 0.5fr 0.5fr;gap:0}
 .lanes.playerOnly .lane:nth-child(1), .lanes.playerOnly .lane:nth-child(2), .lanes.playerOnly .lane:nth-child(3), .lanes.playerOnly .lane:nth-child(4){width:70%;flex:1}
 .lanes.playerOnly .lane:nth-child(1){margin-left:70px}
@@ -751,103 +736,4 @@ opacity:.55;z-index:1;animation:glowPulse 2.8s ease-in-out infinite}
   .comicText {
     font-size: 18px;
   }
-}
-
-/* Loading Screen Styles */
-.loadingScreen {
-  position: fixed;
-  inset: 0;
-  background: linear-gradient(135deg, #0b1020 0%, #1e293b 50%, #0b1020 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  opacity: 1;
-  transition: opacity 0.5s ease-out;
-}
-
-.loadingScreen.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.loadingContent {
-  text-align: center;
-  color: #e5e7eb;
-  max-width: 500px;
-  padding: 20px;
-}
-
-.loadingLogo {
-  width: min(400px, 60vw);
-  height: auto;
-  margin-bottom: 30px;
-  filter: drop-shadow(0 0 20px rgba(6,182,212,.4));
-  animation: logoGlow 2s ease-in-out infinite alternate;
-}
-
-@keyframes logoGlow {
-  0% { filter: drop-shadow(0 0 20px rgba(6,182,212,.4)); }
-  100% { filter: drop-shadow(0 0 30px rgba(6,182,212,.6)); }
-}
-
-.loadingText {
-  font-size: 28px;
-  font-weight: 600;
-  margin-bottom: 20px;
-  color: #06b6d4;
-  text-shadow: 0 0 10px rgba(6,182,212,.3);
-}
-
-.loadingProgress {
-  margin-bottom: 20px;
-}
-
-.progressBar {
-  width: 100%;
-  height: 8px;
-  background: rgba(255,255,255,.1);
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-
-.progressFill {
-  height: 100%;
-  background: linear-gradient(90deg, #06b6d4, #0891b2);
-  border-radius: 4px;
-  width: 0%;
-  transition: width 0.1s ease-out;
-  box-shadow: 0 0 10px rgba(6,182,212,.5);
-  position: relative;
-  overflow: hidden;
-}
-
-.progressFill::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  animation: progressShine 2s infinite;
-}
-
-@keyframes progressShine {
-  0% { left: -100%; }
-  100% { left: 100%; }
-}
-
-.progressText {
-  font-size: 18px;
-  font-weight: 500;
-  color: #06b6d4;
-}
-
-.loadingStatus {
-  font-size: 16px;
-  color: #9ca3af;
-  font-style: italic;
-  min-height: 20px;
 }

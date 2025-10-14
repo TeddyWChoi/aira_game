@@ -1,300 +1,6 @@
 
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
-
-// Asset Preloading System
-class AssetLoader {
-  constructor() {
-    this.loadedAssets = new Set();
-    this.totalAssets = 0;
-    this.loadedCount = 0;
-    this.loadingScreen = $('#loadingScreen');
-    this.progressFill = $('#progressFill');
-    this.progressText = $('#progressText');
-    this.loadingStatus = $('#loadingStatus');
-    this.preloadedVideos = new Map(); // Cache for preloaded videos
-    this.preloadedAudios = new Map(); // Cache for preloaded audios
-  }
-
-  updateProgress() {
-    const percentage = (this.loadedCount / this.totalAssets) * 100;
-    const percentageRounded = Math.round(percentage * 100) / 100; // Round to 2 decimal places
-    this.progressFill.style.width = `${percentageRounded}%`;
-    this.progressText.textContent = `${percentageRounded.toFixed(2)}%`;
-  }
-
-  updateStatus(status) {
-    this.loadingStatus.textContent = status;
-  }
-
-  isMobile() {
-    return window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  }
-
-  async loadImage(src) {
-    return new Promise((resolve, reject) => {
-      console.log(`Starting to load image: ${src}`);
-      const startTime = performance.now();
-      const img = new Image();
-      
-      // Set timeout for mobile devices
-      const timeout = setTimeout(() => {
-        const elapsed = performance.now() - startTime;
-        console.error(`Image loading timeout after ${elapsed.toFixed(2)}ms: ${src}`);
-        reject(new Error(`Image loading timeout: ${src}`));
-      }, 15000); // 15 second timeout
-      
-      img.onload = () => {
-        const elapsed = performance.now() - startTime;
-        console.log(`Image loaded successfully in ${elapsed.toFixed(2)}ms: ${src}`);
-        clearTimeout(timeout);
-        resolve(img);
-      };
-      
-      img.onerror = (error) => {
-        const elapsed = performance.now() - startTime;
-        console.error(`Image loading error after ${elapsed.toFixed(2)}ms: ${src}`, error);
-        clearTimeout(timeout);
-        reject(new Error(`Failed to load image: ${src}`));
-      };
-      
-      // Add crossOrigin for CORS issues
-      img.crossOrigin = 'anonymous';
-      img.src = src;
-    });
-  }
-
-  async loadAudio(src) {
-    return new Promise((resolve, reject) => {
-      console.log(`Starting to load audio: ${src}`);
-      const startTime = performance.now();
-      const audio = new Audio();
-      audio.preload = 'auto';
-      
-      // Set timeout for audio loading
-      const timeout = setTimeout(() => {
-        const elapsed = performance.now() - startTime;
-        console.error(`Audio loading timeout after ${elapsed.toFixed(2)}ms: ${src}`);
-        reject(new Error(`Audio loading timeout: ${src}`));
-      }, 20000); // 20 second timeout for audio
-      
-      // Multiple event listeners for better compatibility
-      const cleanup = () => {
-        clearTimeout(timeout);
-        audio.removeEventListener('canplaythrough', onCanPlay);
-        audio.removeEventListener('loadeddata', onLoadedData);
-        audio.removeEventListener('error', onError);
-        audio.removeEventListener('loadstart', onLoadStart);
-        audio.removeEventListener('progress', onProgress);
-      };
-      
-      const onCanPlay = () => {
-        const elapsed = performance.now() - startTime;
-        console.log(`Audio loaded successfully in ${elapsed.toFixed(2)}ms: ${src}`);
-        cleanup();
-        this.preloadedAudios.set(src, audio);
-        resolve(audio);
-      };
-      
-      const onLoadedData = () => {
-        const elapsed = performance.now() - startTime;
-        console.log(`Audio data loaded in ${elapsed.toFixed(2)}ms: ${src}`);
-        // Don't resolve here, wait for canplaythrough
-      };
-      
-      const onError = (error) => {
-        const elapsed = performance.now() - startTime;
-        console.error(`Audio loading error after ${elapsed.toFixed(2)}ms: ${src}`, error);
-        cleanup();
-        reject(new Error(`Failed to load audio: ${src}`));
-      };
-      
-      const onLoadStart = () => {
-        console.log(`Audio load started: ${src}`);
-      };
-      
-      const onProgress = () => {
-        if (audio.buffered.length > 0) {
-          const bufferedEnd = audio.buffered.end(audio.buffered.length - 1);
-          const duration = audio.duration;
-          if (duration > 0) {
-            const percent = (bufferedEnd / duration) * 100;
-            console.log(`Audio loading progress: ${src} - ${percent.toFixed(1)}%`);
-          }
-        }
-      };
-      
-      audio.addEventListener('canplaythrough', onCanPlay);
-      audio.addEventListener('loadeddata', onLoadedData);
-      audio.addEventListener('error', onError);
-      audio.addEventListener('loadstart', onLoadStart);
-      audio.addEventListener('progress', onProgress);
-      
-      audio.src = src;
-    });
-  }
-
-  async loadVideo(src) {
-    return new Promise((resolve, reject) => {
-      // Create a temporary video element for preloading
-      const video = document.createElement('video');
-      video.preload = 'auto';
-      video.muted = true; // Mute for preloading
-      video.oncanplaythrough = () => {
-        video.removeEventListener('canplaythrough', video.oncanplaythrough);
-        video.removeEventListener('error', video.onerror);
-        // Store the loaded video data in cache
-        this.preloadedVideos.set(src, video);
-        resolve(video);
-      };
-      video.onerror = () => {
-        video.removeEventListener('canplaythrough', video.oncanplaythrough);
-        video.removeEventListener('error', video.onerror);
-        reject(new Error(`Failed to load video: ${src}`));
-      };
-      video.src = src;
-    });
-  }
-
-  async preloadAssets() {
-    this.updateStatus('Preparing asset list...');
-    
-    // Log network information for debugging
-    if ('connection' in navigator) {
-      const connection = navigator.connection;
-      console.log('Network info:', {
-        effectiveType: connection.effectiveType,
-        downlink: connection.downlink,
-        rtt: connection.rtt,
-        saveData: connection.saveData
-      });
-    }
-    
-    // Collect all asset paths
-    const assetPaths = [];
-    
-    // Background images
-    Object.values(assets.bg).forEach(path => assetPaths.push({ type: 'image', path }));
-    
-    // Character images
-    Object.values(assets.char).forEach(path => assetPaths.push({ type: 'image', path }));
-    Object.values(assets.charDialog).forEach(path => assetPaths.push({ type: 'image', path }));
-    
-    // UI images
-    Object.values(assets.ui).forEach(path => assetPaths.push({ type: 'image', path }));
-    
-    // Service images
-    Object.values(assets.service).forEach(path => assetPaths.push({ type: 'image', path }));
-    
-    // Only preload essential audio files - skip large combo sounds on mobile
-    const essentialAudio = ['sfx_start', 'sfx_hit', 'sfx_damage', 'sfx_ko', 'sfx_special', 'sfx_critical', 'sfx_Button', 'sfx_skip'];
-    
-    // Add combo sounds only on desktop or good network
-    if (!this.isMobile() || (navigator.connection && navigator.connection.effectiveType === '4g')) {
-      essentialAudio.push('sfx_50combo', 'sfx_100combo');
-    }
-    
-    essentialAudio.forEach(key => {
-      if (assets.audio[key]) {
-        assetPaths.push({ type: 'audio', path: assets.audio[key] });
-      }
-    });
-    
-    // Skip video files for now - load them on demand
-    // Object.values(assets.video).forEach(path => assetPaths.push({ type: 'video', path }));
-    
-    this.totalAssets = assetPaths.length;
-    this.updateStatus(`Loading ${this.totalAssets} assets...`);
-    
-    // Load assets sequentially on mobile to avoid concurrent request limits
-    if (this.isMobile()) {
-      console.log('Mobile detected - using sequential loading');
-      for (let i = 0; i < assetPaths.length; i++) {
-        const asset = assetPaths[i];
-        try {
-          console.log(`Loading asset ${i + 1}/${assetPaths.length}: ${asset.path}`);
-          this.updateStatus(`Loading ${asset.path.split('/').pop()}... (${i + 1}/${assetPaths.length})`);
-          
-          switch (asset.type) {
-            case 'image':
-              await this.loadImage(asset.path);
-              break;
-            case 'audio':
-              await this.loadAudio(asset.path);
-              break;
-            case 'video':
-              await this.loadVideo(asset.path);
-              break;
-          }
-          this.loadedAssets.add(asset.path);
-          this.loadedCount++;
-          this.updateProgress();
-          this.updateStatus(`Loaded ${asset.path.split('/').pop()}...`);
-          
-          // Small delay between each asset on mobile
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (error) {
-          console.warn(`Failed to load ${asset.path}:`, error);
-          this.loadedCount++;
-          this.updateProgress();
-          this.updateStatus(`Skipped ${asset.path.split('/').pop()} (failed to load)...`);
-        }
-      }
-    } else {
-      // Use batch loading for desktop
-      console.log('Desktop detected - using batch loading');
-      const batchSize = 5;
-      for (let i = 0; i < assetPaths.length; i += batchSize) {
-        const batch = assetPaths.slice(i, i + batchSize);
-        const promises = batch.map(async (asset) => {
-          try {
-            switch (asset.type) {
-              case 'image':
-                await this.loadImage(asset.path);
-                break;
-              case 'audio':
-                await this.loadAudio(asset.path);
-                break;
-              case 'video':
-                await this.loadVideo(asset.path);
-                break;
-            }
-            this.loadedAssets.add(asset.path);
-            this.loadedCount++;
-            this.updateProgress();
-            this.updateStatus(`Loaded ${asset.path.split('/').pop()}...`);
-          } catch (error) {
-            console.warn(`Failed to load ${asset.path}:`, error);
-            this.loadedCount++;
-            this.updateProgress();
-            this.updateStatus(`Skipped ${asset.path.split('/').pop()} (failed to load)...`);
-          }
-        });
-        
-        await Promise.all(promises);
-        
-        // Small delay between batches
-        if (i + batchSize < assetPaths.length) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      }
-    }
-    
-    this.updateStatus('All assets loaded! Starting game...');
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Hide loading screen
-    this.loadingScreen.classList.add('hidden');
-    
-    // Show start screen after loading is complete
-    setTimeout(() => {
-      $('#start').style.display = 'flex';
-    }, 500);
-  }
-}
-
-// Initialize asset loader
-const assetLoader = new AssetLoader();
 const UI_IMG=(k)=>{
   const map={
     start:"assets/img/ui/start.png",
@@ -317,46 +23,6 @@ function renderTextOrImage(el, keyOrText){
 }
 const KEYS = {68:0,70:1,74:2,75:3};
 const PLAYER_LANES=[0,1,2,3];
-// Simple video loading
-function loadVideoWithFallback(videoElement, baseName) {
-  const videoPath = `assets/video/${baseName}.mp4`;
-  
-  console.log(`Loading video: ${videoPath}`);
-  
-  // Clear any previous error handlers
-  videoElement.onerror = null;
-  
-  // Set source and load
-  videoElement.src = videoPath;
-  videoElement.load();
-  
-  // Wait for video to be ready before playing
-  return new Promise((resolve, reject) => {
-    const handleCanPlay = () => {
-      videoElement.removeEventListener('canplaythrough', handleCanPlay);
-      videoElement.removeEventListener('error', handleError);
-      console.log(`Video ready: ${videoPath}`);
-      resolve();
-    };
-    
-    const handleError = () => {
-      videoElement.removeEventListener('canplaythrough', handleCanPlay);
-      videoElement.removeEventListener('error', handleError);
-      console.error(`Failed to load video: ${videoPath}`);
-      videoElement.style.display = 'none';
-      reject(new Error(`Failed to load video: ${videoPath}`));
-    };
-    
-    videoElement.addEventListener('canplaythrough', handleCanPlay);
-    videoElement.addEventListener('error', handleError);
-    
-    // If video is already loaded, resolve immediately
-    if (videoElement.readyState >= 3) {
-      handleCanPlay();
-    }
-  });
-}
-
 const assets={bg:{neon:"assets/img/backgrounds/bg_neoncity.png",lab:"assets/img/backgrounds/bg_lab.png",arcade:"assets/img/backgrounds/bg_arcade.png"},
 char:{AIRA:"assets/img/characters/aira2.png",AIRA_HIT:"assets/img/characters/aira_x.png",AIRA_SPECIAL:"assets/img/characters/aira3.png",FIX:"assets/img/characters/fix2.png",FIX_HIT:"assets/img/characters/fix_x.png",FIX_SPECIAL:"assets/img/characters/fix3.png",GLICH:"assets/img/characters/glitch2.png","GL!TCH":"assets/img/characters/glitch2.png",GLICH_HIT:"assets/img/characters/glitch_x.png","GL!TCH_SPECIAL":"assets/img/characters/glitch3.png",AIRA_END:"assets/img/characters/aira_ending.png"},
 charDialog:{AIRA:"assets/img/characters/aira2.png",FIX:"assets/img/characters/fix2.png",GLICH:"assets/img/characters/glitch2.png","GL!TCH":"assets/img/characters/glitch2.png",AIRA_END:"assets/img/characters/aira_ending.png"},
@@ -454,10 +120,6 @@ const SCENES=[{type:"start"},
 {type:"ending"}];
 let sceneIndex=-1,audioEl=null,videoEl=$("#mv"),inputSuppressUntil=0;
 const game={started:false,travelTime:1.35,hitWindow:0.24,startMs:0,notes:[],combo:0,score:0,hpSelf:50,hpEnemy:50,hpLock:false,enemyName:"",finished:false,bpm:133,duration:120,missCount:0,perfectCount:0,greatCount:0,goodCount:0,maxCombo:0,songEnded:false,sp:0,_timerTo:null,specialCount:0,specialAttempts:0,lastNoteHit:false};
-// Defrag mode runtime state
-const defrag={enabled:false,notes:[],speed:420, // px per second
-  judgeX:0, overload:false, gridCols:32, gridRows:18,
-  colors:{perfect:'#3b82f6',great:'#22c55e',good:'#facc15',miss:'#ef4444',overload:'#8b5cf6'}}
 function setBG(key){$("#bg").src=assets.bg[key]}
 function showBackground(show){$("#bg").style.display=show?"block":"none"}
 function activateBgMotion(){const bg=document.getElementById('bg');if(!bg)return;bg.classList.add('bgAlive');if(!document.getElementById('bgOverlay')){const ov=document.createElement('div');ov.id='bgOverlay';ov.className='bgOverlay';bg.parentElement.appendChild(ov)}}
@@ -735,108 +397,41 @@ function generatePattern(bpm,duration){
       if(Math.random()<0.35){ b+=1; t+=beat; continue }
     }
     
-  // sometimes spawn a chord (2 notes at same time) — but avoid during single-line runs
-  const lanes=[0,1,2,3];
-  const baseLane=Math.floor(Math.random()*4);
-  const chordChance=Math.random();
-  const isChord=chordChance<0.18; // lower chance to reduce clutter
-  // normal (possibly chord) tap notes
-  notes.push({t,lane:baseLane});
-  if(isChord){
+    // sometimes spawn a chord (2-3 notes at same time)
+    const lanes=[0,1,2,3];
+    const baseLane=Math.floor(Math.random()*4);
+    const chordChance=Math.random();
+    const isChord=chordChance<0.28; // 28% chance
+    const isTriple= isChord && Math.random()<0.15;
+    // normal (possibly chord) tap notes
+    notes.push({t,lane:baseLane});
+    if(isChord){
       const avail=lanes.filter(l=>l!==baseLane);
       const l2=avail.splice(Math.floor(Math.random()*avail.length),1)[0];
       notes.push({t,lane:l2});
-  }
-  // occasional quick-follow note (less frequent to keep single-line clarity)
-  if(Math.random()<0.15){ notes.push({t:t+0.5*beat,lane:(baseLane+1)%4}) }
+      if(isTriple){ const l3=avail[Math.floor(Math.random()*avail.length)]; if(l3!=null) notes.push({t,lane:l3}) }
+    }
+    // occasional quick-follow note
+    if(Math.random()<0.25){ notes.push({t:t+0.5*beat,lane:(baseLane+1)%4}) }
     b+=1; t+=beat
-  }
-  // Post-process: inject special (yellow) notes by converting existing notes
-  // Never spawn extra entities; flip one of the existing notes to sp within spaced intervals
-  const minSpecialGapSec = 6; // minimum seconds between special notes
-  let nextSpecialEligibleTime = 2*beat; // start after intro delay
-  for(let i=0;i<notes.length;i++){
-    const n = notes[i];
-    if(n.t < nextSpecialEligibleTime) continue;
-    // With small probability, mark this existing note as special
-    if(Math.random() < 0.12){
-      n.sp = true;
-      nextSpecialEligibleTime = n.t + minSpecialGapSec; // enforce gap in seconds
-    }
-  }
-  // Ensure no two specials share the exact same timestamp (safety)
-  const seenAtTime = new Map();
-  for(const n of notes){
-    const key = Math.round(n.t*1000); // ms bucket
-    if(n.sp){
-      if(seenAtTime.has(key)){
-        // If another special already at this instant, demote this one to normal
-        n.sp = false;
-      } else {
-        seenAtTime.set(key,true);
-      }
-    }
   }
   return notes
 }
 function createAudio(src){const a=new Audio();a.src=src;return a}
-function loadTrack(name){
-  const audioPath = assets.audio[name];
-  
-  // Check if audio was preloaded
-  if (assetLoader.preloadedAudios.has(audioPath)) {
-    console.log(`Using preloaded audio: ${audioPath}`);
-    return Promise.resolve(assetLoader.preloadedAudios.get(audioPath));
-  }
-  
-  // Fallback to original loading method
-  return new Promise(res=>{
-    const a=createAudio(audioPath);
-    a.addEventListener("canplaythrough",()=>res(a),{once:true});
-    a.addEventListener("error",()=>res(null),{once:true});
-    a.load()
-  })
-}
+function loadTrack(name){return new Promise(res=>{const a=createAudio(assets.audio[name]);a.addEventListener("canplaythrough",()=>res(a),{once:true});a.addEventListener("error",()=>res(null),{once:true});a.load()})}
 function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMotion();$("#dialog").style.display="none";$("#playfield").style.display="block";
   // Restore any gameplay UI that may have been hidden by post-battle cut
   const pf=$("#playfield"); if(pf){pf.classList.remove('overlayMode'); pf.style.zIndex=''}
-  const lanesEl=$("#lanes"); if(lanesEl){lanesEl.style.display='none'}
+  const lanesEl=$("#lanes"); if(lanesEl){lanesEl.style.display='grid'}
   const hpEl=document.querySelector('.hpContainer'); if(hpEl){hpEl.style.display='block'}
-  const hitline=document.querySelector('.hitline'); if(hitline){hitline.style.display='none'}
-  const hwo=$("#hitWindowOverlay"); if(hwo){hwo.style.display='none'}
+  const hitline=document.querySelector('.hitline'); if(hitline){hitline.style.display='block'}
+  const hwo=$("#hitWindowOverlay"); if(hwo){hwo.style.display='block'}
   const timer=$("#timer"); if(timer){timer.style.display='block'}
   const hud=$(".hud"); if(hud){hud.style.display='flex'; hud.style.visibility='visible'}
   const gameUI=$(".gameUI"); if(gameUI){gameUI.style.display='flex'; gameUI.style.visibility='visible'}
   const scoreDisplay=$(".scoreDisplay"); if(scoreDisplay){scoreDisplay.style.display='flex'; scoreDisplay.style.visibility='visible'}
   const skipBtn=$("#skipButton"); if(skipBtn){skipBtn.style.display='block'}
   setupLanes();
-  // Enable defrag mode UI
-  defrag.enabled=true; const track=$('#defragTrack'); if(track){track.style.display='block'}
-  const grid = document.getElementById('defragGrid'); if(grid){
-    if(!grid.hasChildNodes()){
-      for(let r=0;r<defrag.gridRows;r++){
-        for(let c=0;c<defrag.gridCols;c++){ const cell=document.createElement('div'); cell.className='cell'; grid.appendChild(cell) }
-      }
-    }
-  }
-  const jl=$('#judgeLine'); if(jl){ const rect=jl.getBoundingClientRect(); defrag.judgeX=rect.left + rect.width/2 }
-  // Build defrag grid once per battle (A style)
-  (function(){
-    const grid = document.getElementById('defragGrid');
-    if(grid){
-      if(!grid.hasChildNodes()){
-        const cols = 32; const rows = 18; // approx grid
-        for(let r=0;r<rows;r++){
-          for(let c=0;c<cols;c++){
-            const cell=document.createElement('div');
-            cell.className='cell';
-            grid.appendChild(cell);
-          }
-        }
-      }
-      grid.style.display='grid';
-    }
-  })();
   // Reset end flags when a new battle starts
   game._ending=false; game.inPostBattle=false;
   // Stop intro music when battle starts
@@ -849,9 +444,8 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
   leftEl.src=assets.char.AIRA; rightEl.src=assets.char[scene.enemy];
   leftEl.style.display="block"; rightEl.style.display="block";
   // enemyName element removed from HTML, no longer needed
-  // Setup MV video: MV only (no overlay background) - use mobile version if on mobile
-  videoEl.style.display="block"; 
-  videoEl.currentTime=0;
+  // Setup MV video: MV only (no overlay background)
+  videoEl.src=assets.video[scene.mv]; videoEl.style.display="block"; videoEl.currentTime=0;
   
   const trackKey=scene.stage===1?"track_133":"track_149";
   // Initialize game state first
@@ -859,36 +453,15 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
   updateGameUI();
   $("#hpSelf").style.width=`${game.hpSelf}%`;$("#hpEnemy").style.width=`${game.hpEnemy}%`;
   game.bpm=scene.bpm;game.duration=scene.duration;game.finished=false;game.enemyName=scene.enemy;
-  // In defrag mode we don't use vertical notes at all
-  if(!defrag.enabled){
-    const p=generatePattern(scene.bpm,scene.duration).map(n=>({ t:n.t, lane:(n.lane%4), enemy:false, sp:!!n.sp }));
-    game.notes=p;
-  } else {
-    game.notes=[];
-  }
+  const p=generatePattern(scene.bpm,scene.duration).map(n=>({ t:n.t, lane:(n.lane%4), enemy:false, sp:!!n.sp }));game.notes=p;
   
-  // Load audio and video, then start countdown
-  Promise.allSettled([
-    loadTrack(trackKey),
-    loadVideoWithFallback(videoEl, scene.mv)
-  ]).then(([audioResult, videoResult]) => {
-    // Handle audio result
-    if (audioResult.status === 'fulfilled' && audioResult.value) {
-      audioEl = audioResult.value;
-      console.log("Audio loaded successfully", !!audioEl);
-      // when song finishes and battle not decided, auto-finish based on misses
-      if(audioEl){
-        audioEl.onended=()=>{try{if(!game.finished){game.finished=true;determineWinner()}}catch(e){}};
-      }
-    } else {
-      console.error("Audio loading failed:", audioResult.reason);
-    }
-    
-    // Handle video result
-    if (videoResult.status === 'fulfilled') {
-      console.log("Video loaded successfully");
-    } else {
-      console.error("Video loading failed:", videoResult.reason);
+  // Load audio first, then start countdown
+  loadTrack(trackKey).then((a) => {
+    audioEl = a; // capture loaded audio element
+    console.log("Audio loaded, starting countdown", !!audioEl);
+    // when song finishes and battle not decided, auto-finish based on misses
+    if(audioEl){
+      audioEl.onended=()=>{try{if(!game.finished){game.finished=true;determineWinner()}}catch(e){}};
     }
     
   // Initialize timer
@@ -939,49 +512,11 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
     playSfx("sfx_start");
     setTimeout(()=>{
       countdownEl.style.display="none";
-      // Start audio; ensure MV audio is muted to avoid double playback
-      if(audioEl){
-        console.log("Starting audio playback");
-        audioEl.currentTime=0;
-        audioEl.play().then(() => {
-          console.log("Audio started successfully");
-        }).catch(e=>{
-          console.log("Audio play failed:",e);
-        });
-      } else {
-        console.error("No audio element available for playback");
-      }
-      
-      try{ const mv=document.getElementById('mv'); if(mv){ mv.muted=true; mv.volume=0; mv.pause(); } }catch(e){}
-      
-      videoEl.currentTime=0;
-      
-      // Mobile video playback improvements
-      videoEl.muted = true; // Start muted for autoplay
-      videoEl.playsInline = true;
-      videoEl.setAttribute('playsinline', 'true');
-      videoEl.setAttribute('webkit-playsinline', 'true');
-      
-      videoEl.play().then(() => {
-        console.log("Video started successfully");
-        // Unmute after successful play
-        setTimeout(() => {
-          videoEl.muted = false;
-        }, 100);
-      }).catch(e=>{
-        console.log("Video play failed:",e);
-        // Try again with muted
-        videoEl.muted = true;
-        videoEl.play().then(() => {
-          console.log("Video started muted successfully");
-        }).catch(e2 => {
-          console.log("Video retry failed:",e2);
-          videoEl.style.display="none";
-        });
-      });
+      // Start audio and video simultaneously after countdown
+      if(audioEl){audioEl.currentTime=0;audioEl.play().catch(e=>console.log("Audio play failed:",e));}
+      videoEl.currentTime=0;videoEl.play().catch(e=>{console.log("Video play failed:",e);videoEl.style.display="none"});
       game.startMs=performance.now();game.started=true;
       updateTimer(); // Start timer with song
-      defragStart();
       loop();
     },500);
   },3000);
@@ -1018,64 +553,6 @@ function endBattle(win){
       })
     }, 1000); // 1초 딜레이
   }, 100);
-}
-// Generate horizontal notes for defrag mode (time-based spawn)
-function defragSpawnPattern(bpm,duration){
-  const beat=60/bpm; const totalBeats=Math.floor(duration/beat)-2; const arr=[]; let t=2*beat;
-  for(let b=0;b<totalBeats;b++){
-    if(Math.random()<0.4){ t+=beat; continue } // reduce density
-    arr.push({t}); t+=beat;
-    if(Math.random()<0.08){ arr.push({t:t+0.5*beat}) } // fewer quicks
-  }
-  return arr
-}
-
-function defragStart(){
-  defrag.notes = defragSpawnPattern(game.bpm, game.duration).map(n=>({t:n.t, x:window.innerWidth*0.85, hit:false, judged:false}));
-  // cache metrics
-  defrag.trackLeft = window.innerWidth*0.15; defrag.trackRight = window.innerWidth*0.85; defrag.judgeX = window.innerWidth*0.5;
-}
-
-function defragUpdate(dt){ if(!defrag.enabled) return; const cont=$('#defragNotes'); if(!cont) return;
-  const nowT=seconds(); const judgeX = defrag.judgeX || (window.innerWidth*0.5); // center line
-  const startX = defrag.trackRight || (window.innerWidth*0.85);
-  const offscreenX = defrag.trackLeft || (window.innerWidth*0.15);
-  const frag=document.createDocumentFragment();
-  for(const n of defrag.notes){
-    if(!n.el){ const el=document.createElement('div'); el.className='defragNote'; el.style.background='#6b7280'; frag.appendChild(el); n.el=el }
-    const aliveTime = Math.max(0, nowT - (n.t - game.travelTime));
-    n.x = startX - defrag.speed * aliveTime;
-    n.el.style.transform = `translate3d(${n.x}px,-50%,0)`;
-    if(!n.judged && Math.abs(n.x-judgeX) < 6){ // auto judgement window visualization
-      // do nothing; wait for input
-    }
-    if(n.x < offscreenX && !n.judged){ // passed judge line -> miss
-      n.judged=true; paintGrid('miss'); if(n.el){n.el.remove()} n.removed=true; damageSelfSilent(1)
-    }
-  }
-  if(frag.children && frag.children.length) cont.appendChild(frag);
-  // prune removed
-  defrag.notes = defrag.notes.filter(n=>!n.removed);
-}
-
-function defragHit(){ if(!defrag.enabled) return; const judgeX= window.innerWidth*0.5; const t=seconds();
-  // find nearest note around judge
-  let best=null, bestDx=1e9, bestDt=1e9; for(const n of defrag.notes){ if(n.judged) continue; const aliveTime=Math.max(0, t - (n.t - game.travelTime)); const x=window.innerWidth*0.85 - defrag.speed*aliveTime; const dx=Math.abs(x-judgeX); const dt=Math.abs(t-n.t); if(dx<bestDx){best=n;bestDx=dx;bestDt=dt} }
-  if(!best){ paintGrid('miss'); return }
-  best.judged=true; if(best.el){best.el.remove()}
-  if(bestDt<=0.03){ paintGrid('perfect'); damageEnemy(3,'PERFECT') }
-  else if(bestDt<=0.06){ paintGrid('great'); damageEnemy(2,'GREAT') }
-  else { paintGrid('good'); damageEnemy(1,'GOOD') }
-}
-
-function paintGrid(kind){ const grid=$('#defragGrid'); if(!grid) return; const cells=grid.children; if(!cells||!cells.length) return;
-  const color= defrag.colors[kind]||'#6b7280';
-  // fill next empty cell left-to-right, top-to-bottom
-  let painted=false; for(let i=0;i<cells.length;i++){ const cell=cells[i]; if(!cell.dataset.filled){ cell.style.background=color; cell.dataset.filled='1'; painted=true; break } }
-  if(!painted){ // overflow -> overload
-    const ov=$('#defragOverload'); if(ov){ ov.style.display='block'; ov.style.background=defrag.colors.overload; setTimeout(()=>ov.style.display='none',700) }
-    for(const cell of cells){ cell.style.background=defrag.colors.overload }
-  }
 }
 
 function showPostBattleScene(win,isStage2){return new Promise(res=>{
@@ -1206,29 +683,8 @@ function now(){return seconds()}
 function makeNoteEl(n){ const lane=$(`.lane[data-index="${n.lane}"]`);if(!lane)return;const el=document.createElement("div"); el.className="note"+(n.enemy?" enemy":"")+(n.sp?" sp":""); lane.appendChild(el); n.el=el }
 // guide elements removed
 function updateNotes(){
-  if(defrag.enabled){
-    // Skip vertical update loop entirely in defrag mode
-    // (notes are handled by defragUpdate)
-    const hw=document.getElementById('hitWindowOverlay'); if(hw){hw.style.display='none'}
-    return;
-  }
   const t=now();const lanes=$$(".lane");if(!lanes.length)return;let laneH=lanes[0].clientHeight||lanes[0].offsetHeight; if(laneH===0){const pf=$("#playfield");laneH=pf?pf.clientHeight:720}
   const hitY=laneH-120;const spawnY=-40;
-  const grid=document.getElementById('defragGrid');
-  const cells = grid?grid.children:[];
-  // Scanner sweep UI (Defrag B style)
-  try{
-    const stageRect = document.querySelector('.stage')?.getBoundingClientRect();
-    const bar=$('#scannerBar'); const trail=$('#scannerTrail');
-    if(stageRect && bar && trail){
-      const sweep=2.0; // seconds per sweep
-      const phase=(t % sweep)/sweep; // 0..1
-      const y = (phase*laneH);
-      bar.style.top = (y + (stageRect.top||0)) + 'px';
-      trail.style.top = (y - 110 + (stageRect.top||0)) + 'px';
-      bar.style.display='block'; trail.style.display='block';
-    }
-  }catch(e){}
   
   // Batch DOM updates for better performance
   const updates = [];
@@ -1239,21 +695,7 @@ function updateNotes(){
     
     // Batch transform updates
     updates.push(() => {
-      // Hide native note visuals; we only use it as a logical carrier for grid tint
-      n.el.style.transform=`translateY(${y}px)`; n.el.style.opacity='0';
-      // Map note Y to grid row and briefly tint that cell to simulate defrag write
-      if(grid && cells && cells.length){
-        const rows=18, cols=32;
-        const row=Math.max(0, Math.min(rows-1, Math.floor((y/laneH)*rows)));
-        const col = n.lane < 4 ? Math.floor((n.lane/4)*cols) + Math.floor(cols/8) : 0; // rough mapping
-        const idx=row*cols + Math.max(0, Math.min(cols-1, col));
-        const cell=cells[idx];
-        if(cell){
-          const color = n.sp? 'rgba(250,204,21,.95)' : 'rgba(59,130,246,.85)';
-          cell.style.background=color;
-          setTimeout(()=>{cell.style.background='rgba(255,255,255,.06)'},160);
-        }
-      }
+      n.el.style.transform=`translateY(${y}px)`;
     });
     
     if(t>n.t+game.hitWindow&&!n.hit&&!n.missed){ 
@@ -1322,11 +764,6 @@ function damageSelf(amount,label){game.combo=0;game.missCount++;game.hpSelf=Math
       const fxSrc = (game.enemyName==='GL!TCH') ? 'assets/img/ui/effect3.png' : 'assets/img/ui/effect2.png';
       ef.src=fxSrc; ef.style.display='block'; ef.className='attackEffect flyR2L';
       setTimeout(()=>{ef.style.display='none'; ef.className='attackEffect'},900)
-    }
-    // D style: trigger grid burst
-    const grid=document.getElementById('defragGrid'); if(grid){
-      grid.classList.add('defragBurst');
-      setTimeout(()=>grid.classList.remove('defragBurst'),800);
     }
     // align CRITICAL text same Y as SPECIAL
     const b=document.getElementById('banner'); const prevTop=b.style.top; b.style.top='24%';
@@ -1473,7 +910,7 @@ function onKey(e){if(!game.started)return;const lane=KEYS[e.keyCode]??-1;if(e.co
 
 // keyup handler no longer needed (hold notes removed)
 // enemyAI removed per design (no opponent attacks)
-function loop(){if(!game.started)return; if(defrag.enabled){ defragUpdate(0) } else { updateNotes() } requestAnimationFrame(loop)}
+function loop(){if(!game.started)return;updateNotes();requestAnimationFrame(loop)}
 function startScene(){
   // Stop all audio
   if(window.endingAudio) window.endingAudio.pause();
@@ -1526,18 +963,9 @@ function showEnding(){
   // stop any music
   if(window.endingAudio) try{window.endingAudio.pause()}catch(e){}
   if(window.currentDialogAudio) try{window.currentDialogAudio.pause()}catch(e){}
-  // play ending video only - use mobile version if on mobile
-  videoEl.currentTime=0; 
-  videoEl.muted=false;
-  loadVideoWithFallback(videoEl, 'ending').then(() => {
-    videoEl.play().catch(e=>{
-      console.log("Ending video play failed:",e);
-      videoEl.style.display="none";
-    });
-  }).catch(e => {
-    console.log("Ending video load failed:",e);
-    videoEl.style.display="none";
-  });
+  // play ending video only
+  videoEl.src=assets.video.ending; videoEl.currentTime=0; videoEl.muted=false;
+  videoEl.play().catch(()=>{});
   videoEl.onended=()=>{
     // hard refresh to fully reset state
     try{location.reload()}catch(e){ sceneIndex=-1; startScene(); }
@@ -1700,44 +1128,28 @@ function addMobileTouchSupport() {
   // Add touch event listeners for mobile devices
   const lanes = document.querySelectorAll('.lane');
   
-  // Use more efficient touch handling
   lanes.forEach((lane, index) => {
-    let touchStartTime = 0;
-    let isPressed = false;
-    
-    // Touch start - immediate response
+    // Touch start
     lane.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      e.stopPropagation();
-      
-      if (isPressed) return; // Prevent duplicate events
-      isPressed = true;
-      touchStartTime = performance.now();
-      
-      // Direct key handling instead of creating events
-      const keyCode = [68, 70, 74, 75][index];
-      onKey({ keyCode, preventDefault: () => {} });
-    }, { passive: false });
+      const keyEvent = new KeyboardEvent('keydown', {
+        keyCode: [68, 70, 74, 75][index], // D, F, J, K
+        code: ['KeyD', 'KeyF', 'KeyJ', 'KeyK'][index],
+        bubbles: true
+      });
+      document.dispatchEvent(keyEvent);
+    });
     
     // Touch end
     lane.addEventListener('touchend', (e) => {
       e.preventDefault();
-      e.stopPropagation();
-      
-      if (!isPressed) return;
-      isPressed = false;
-      
-      // Direct key handling for keyup
-      const keyCode = [68, 70, 74, 75][index];
-      // Note: We don't have a keyup handler, but this prevents stuck keys
-    }, { passive: false });
-    
-    // Touch cancel - important for mobile
-    lane.addEventListener('touchcancel', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      isPressed = false;
-    }, { passive: false });
+      const keyEvent = new KeyboardEvent('keyup', {
+        keyCode: [68, 70, 74, 75][index], // D, F, J, K
+        code: ['KeyD', 'KeyF', 'KeyJ', 'KeyK'][index],
+        bubbles: true
+      });
+      document.dispatchEvent(keyEvent);
+    });
   });
   
   // Prevent default touch behaviors only for lanes
@@ -1767,32 +1179,10 @@ function addMobileTouchSupport() {
   }, false);
 }
 
-// Initialize game with asset preloading
-window.addEventListener("load", async () => {
-  // Hide start screen initially
-  $('#start').style.display = 'none';
-  
-  // Start asset preloading
-  try {
-    await assetLoader.preloadAssets();
-  } catch (error) {
-    console.error('Asset preloading failed:', error);
-    // Continue anyway, but show warning
-    $('#loadingStatus').textContent = 'Some assets failed to load, but continuing...';
-    setTimeout(() => {
-      $('#loadingScreen').classList.add('hidden');
-      $('#start').style.display = 'flex';
-    }, 1000);
-  }
-  
-  // Initialize game systems
+// Initialize mobile support after DOM is loaded
+window.addEventListener("load", () => {
   init();
-  // Disable mobile lane touch in defrag mode
-  // addMobileTouchSupport();
-  // Bind Space for defrag mode
-  document.addEventListener('keydown',(e)=>{ if(e.code==='Space'){ e.preventDefault(); defragHit() }})
-  // Recompute metrics on resize (prevents layout jank)
-  window.addEventListener('resize',()=>{ defrag.trackLeft = window.innerWidth*0.15; defrag.trackRight = window.innerWidth*0.85; defrag.judgeX = window.innerWidth*0.5 })
+  addMobileTouchSupport();
 });
 
 
