@@ -859,7 +859,13 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
   updateGameUI();
   $("#hpSelf").style.width=`${game.hpSelf}%`;$("#hpEnemy").style.width=`${game.hpEnemy}%`;
   game.bpm=scene.bpm;game.duration=scene.duration;game.finished=false;game.enemyName=scene.enemy;
-  const p=generatePattern(scene.bpm,scene.duration).map(n=>({ t:n.t, lane:(n.lane%4), enemy:false, sp:!!n.sp }));game.notes=p;
+  // In defrag mode we don't use vertical notes at all
+  if(!defrag.enabled){
+    const p=generatePattern(scene.bpm,scene.duration).map(n=>({ t:n.t, lane:(n.lane%4), enemy:false, sp:!!n.sp }));
+    game.notes=p;
+  } else {
+    game.notes=[];
+  }
   
   // Load audio and video, then start countdown
   Promise.allSettled([
@@ -1190,6 +1196,12 @@ function now(){return seconds()}
 function makeNoteEl(n){ const lane=$(`.lane[data-index="${n.lane}"]`);if(!lane)return;const el=document.createElement("div"); el.className="note"+(n.enemy?" enemy":"")+(n.sp?" sp":""); lane.appendChild(el); n.el=el }
 // guide elements removed
 function updateNotes(){
+  if(defrag.enabled){
+    // Skip vertical update loop entirely in defrag mode
+    // (notes are handled by defragUpdate)
+    const hw=document.getElementById('hitWindowOverlay'); if(hw){hw.style.display='none'}
+    return;
+  }
   const t=now();const lanes=$$(".lane");if(!lanes.length)return;let laneH=lanes[0].clientHeight||lanes[0].offsetHeight; if(laneH===0){const pf=$("#playfield");laneH=pf?pf.clientHeight:720}
   const hitY=laneH-120;const spawnY=-40;
   const grid=document.getElementById('defragGrid');
@@ -1451,7 +1463,7 @@ function onKey(e){if(!game.started)return;const lane=KEYS[e.keyCode]??-1;if(e.co
 
 // keyup handler no longer needed (hold notes removed)
 // enemyAI removed per design (no opponent attacks)
-function loop(){if(!game.started)return;updateNotes();defragUpdate(0);requestAnimationFrame(loop)}
+function loop(){if(!game.started)return; if(defrag.enabled){ defragUpdate(0) } else { updateNotes() } requestAnimationFrame(loop)}
 function startScene(){
   // Stop all audio
   if(window.endingAudio) window.endingAudio.pause();
