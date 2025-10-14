@@ -800,10 +800,10 @@ function loadTrack(name){
 function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMotion();$("#dialog").style.display="none";$("#playfield").style.display="block";
   // Restore any gameplay UI that may have been hidden by post-battle cut
   const pf=$("#playfield"); if(pf){pf.classList.remove('overlayMode'); pf.style.zIndex=''}
-  const lanesEl=$("#lanes"); if(lanesEl){lanesEl.style.display='grid'}
+  const lanesEl=$("#lanes"); if(lanesEl){lanesEl.style.display='none'}
   const hpEl=document.querySelector('.hpContainer'); if(hpEl){hpEl.style.display='block'}
-  const hitline=document.querySelector('.hitline'); if(hitline){hitline.style.display='block'}
-  const hwo=$("#hitWindowOverlay"); if(hwo){hwo.style.display='block'}
+  const hitline=document.querySelector('.hitline'); if(hitline){hitline.style.display='none'}
+  const hwo=$("#hitWindowOverlay"); if(hwo){hwo.style.display='none'}
   const timer=$("#timer"); if(timer){timer.style.display='block'}
   const hud=$(".hud"); if(hud){hud.style.display='flex'; hud.style.visibility='visible'}
   const gameUI=$(".gameUI"); if(gameUI){gameUI.style.display='flex'; gameUI.style.visibility='visible'}
@@ -1765,7 +1765,8 @@ window.addEventListener("load", async () => {
   
   // Initialize game systems
   init();
-  addMobileTouchSupport();
+  // Disable mobile lane touch in defrag mode
+  // addMobileTouchSupport();
   // Bind Space for defrag mode
   document.addEventListener('keydown',(e)=>{ if(e.code==='Space'){ e.preventDefault(); defragHit() }})
 });

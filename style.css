@@ -54,7 +54,7 @@ opacity:.55;z-index:1;animation:glowPulse 2.8s ease-in-out infinite}
 .defragOverload{position:absolute;top:8%;left:50%;transform:translateX(-50%);padding:6px 14px;border-radius:10px;background:rgba(109,40,217,.9);color:#fff;font-weight:900;letter-spacing:1px;box-shadow:0 6px 18px rgba(109,40,217,.35)}
 .defragHint{position:absolute;bottom:12%;left:50%;transform:translateX(-50%);color:#9ca3af;font-weight:600}
 .playfield.overlayMode{background:transparent;outline:none;box-shadow:none}
-.lanes{position:absolute;left:15%;right:15%;top:0;bottom:0;display:grid;grid-template-columns:repeat(8,1fr);gap:10px;padding:16px 16px 140px;z-index:2}
+.lanes{position:absolute;left:15%;right:15%;top:0;bottom:0;display:none;grid-template-columns:repeat(8,1fr);gap:10px;padding:16px 16px 140px;z-index:2}
 .scannerBar,.scannerTrail{display:none}
 .lane .note{width:16px;height:16px;border-radius:3px;background:transparent;border:none;box-shadow:none;opacity:0}
 .lane .note.sp{opacity:0}
