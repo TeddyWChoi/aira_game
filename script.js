@@ -952,7 +952,7 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
         console.error("No audio element available for playback");
       }
       
-      try{ const mv=document.getElementById('mv'); if(mv){ mv.muted=true; mv.volume=0; } }catch(e){}
+      try{ const mv=document.getElementById('mv'); if(mv){ mv.muted=true; mv.volume=0; mv.pause(); } }catch(e){}
       
       videoEl.currentTime=0;
       
@@ -1023,9 +1023,9 @@ function endBattle(win){
 function defragSpawnPattern(bpm,duration){
   const beat=60/bpm; const totalBeats=Math.floor(duration/beat)-2; const arr=[]; let t=2*beat;
   for(let b=0;b<totalBeats;b++){
-    if(Math.random()<0.28){ t+=beat; continue }
+    if(Math.random()<0.4){ t+=beat; continue } // reduce density
     arr.push({t}); t+=beat;
-    if(Math.random()<0.18){ arr.push({t:t+0.5*beat}) }
+    if(Math.random()<0.08){ arr.push({t:t+0.5*beat}) } // fewer quicks
   }
   return arr
 }
@@ -1040,11 +1040,12 @@ function defragUpdate(dt){ if(!defrag.enabled) return; const cont=$('#defragNote
   const nowT=seconds(); const judgeX = defrag.judgeX || (window.innerWidth*0.5); // center line
   const startX = defrag.trackRight || (window.innerWidth*0.85);
   const offscreenX = defrag.trackLeft || (window.innerWidth*0.15);
+  const frag=document.createDocumentFragment();
   for(const n of defrag.notes){
-    if(!n.el){ const el=document.createElement('div'); el.className='defragNote'; el.style.background='#6b7280'; cont.appendChild(el); n.el=el }
+    if(!n.el){ const el=document.createElement('div'); el.className='defragNote'; el.style.background='#6b7280'; frag.appendChild(el); n.el=el }
     const aliveTime = Math.max(0, nowT - (n.t - game.travelTime));
     n.x = startX - defrag.speed * aliveTime;
-    n.el.style.left = n.x + 'px';
+    n.el.style.transform = `translate3d(${n.x}px,-50%,0)`;
     if(!n.judged && Math.abs(n.x-judgeX) < 6){ // auto judgement window visualization
       // do nothing; wait for input
     }
@@ -1052,6 +1053,7 @@ function defragUpdate(dt){ if(!defrag.enabled) return; const cont=$('#defragNote
       n.judged=true; paintGrid('miss'); if(n.el){n.el.remove()} n.removed=true; damageSelfSilent(1)
     }
   }
+  if(frag.children && frag.children.length) cont.appendChild(frag);
   // prune removed
   defrag.notes = defrag.notes.filter(n=>!n.removed);
 }
