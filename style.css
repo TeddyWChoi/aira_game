@@ -44,15 +44,16 @@ opacity:.55;z-index:1;animation:glowPulse 2.8s ease-in-out infinite}
 #text{display:block;text-align:center;margin:0 auto}
 .bubble .decorativeIcon{position:absolute;bottom:12px;right:16px;width:24px;height:24px;background:linear-gradient(135deg, #06b6d4, #0891b2);border-radius:4px;opacity:0.8;box-shadow:0 2px 8px rgba(6,182,212,.3)}
 .playfield{position:absolute;left:0;top:0;transform:none;width:100vw;height:100vh;border-radius:0;outline:none;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.02));overflow:hidden;display:none;z-index:6}
-.playfield::before{content:"";position:absolute;inset:0;background-image:
-  linear-gradient(rgba(255,255,255,0.06) 1px, transparent 1px),
-  linear-gradient(90deg, rgba(255,255,255,0.06) 1px, transparent 1px);
-background-size: 16px 16px, 16px 16px; pointer-events:none; z-index:0}
+.playfield::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 10%, rgba(59,130,246,.08), transparent 60%),radial-gradient(120% 80% at 50% 120%, rgba(0,0,0,.36), transparent 40%);pointer-events:none; z-index:0}
+.defragGrid{position:absolute;left:15%;right:15%;top:0;bottom:140px;display:grid;grid-template-columns:repeat(32,1fr);grid-auto-rows:1fr;gap:2px;z-index:1;pointer-events:none}
+.defragGrid .cell{background:rgba(255,255,255,.06);border-radius:2px;transition:background-color .15s ease}
 .playfield.overlayMode{background:transparent;outline:none;box-shadow:none}
 .lanes{position:absolute;left:15%;right:15%;top:0;bottom:0;display:grid;grid-template-columns:repeat(8,1fr);gap:10px;padding:16px 16px 140px;z-index:2}
-.scannerBar{position:absolute;left:15%;right:15%;height:10px;border-radius:6px;background:linear-gradient(90deg, rgba(59,130,246,.0), rgba(59,130,246,.65), rgba(59,130,246,.0));box-shadow:0 0 20px rgba(59,130,246,.35);z-index:3;pointer-events:none;mix-blend-mode:screen;}
-.scannerTrail{position:absolute;left:15%;right:15%;height:120px;border-radius:8px;background:linear-gradient(180deg, rgba(59,130,246,.12), rgba(59,130,246,0));filter:blur(1px);z-index:1;pointer-events:none}
+.scannerBar,.scannerTrail{display:none}
 .lane .note{width:16px;height:16px;border-radius:3px}
+/* Special (D style) - grid reassemble animation */
+.defragBurst{animation:defragBurst .8s ease-out forwards}
+@keyframes defragBurst{0%{transform:scale(1);filter:brightness(1)}40%{transform:scale(1.03);filter:brightness(1.3)}100%{transform:scale(1);filter:brightness(1)}}
 .lanes.playerOnly{grid-template-columns:0.5fr 0.5fr 0.5fr 0.5fr;gap:0}
 .lanes.playerOnly .lane:nth-child(1), .lanes.playerOnly .lane:nth-child(2), .lanes.playerOnly .lane:nth-child(3), .lanes.playerOnly .lane:nth-child(4){width:70%;flex:1}
 .lanes.playerOnly .lane:nth-child(1){margin-left:70px}

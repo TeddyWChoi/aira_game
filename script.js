@@ -806,6 +806,23 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
   const scoreDisplay=$(".scoreDisplay"); if(scoreDisplay){scoreDisplay.style.display='flex'; scoreDisplay.style.visibility='visible'}
   const skipBtn=$("#skipButton"); if(skipBtn){skipBtn.style.display='block'}
   setupLanes();
+  // Build defrag grid once per battle (A style)
+  (function(){
+    const grid = document.getElementById('defragGrid');
+    if(grid){
+      if(!grid.hasChildNodes()){
+        const cols = 32; const rows = 18; // approx grid
+        for(let r=0;r<rows;r++){
+          for(let c=0;c<cols;c++){
+            const cell=document.createElement('div');
+            cell.className='cell';
+            grid.appendChild(cell);
+          }
+        }
+      }
+      grid.style.display='grid';
+    }
+  })();
   // Reset end flags when a new battle starts
   game._ending=false; game.inPostBattle=false;
   // Stop intro music when battle starts
@@ -1110,6 +1127,8 @@ function makeNoteEl(n){ const lane=$(`.lane[data-index="${n.lane}"]`);if(!lane)r
 function updateNotes(){
   const t=now();const lanes=$$(".lane");if(!lanes.length)return;let laneH=lanes[0].clientHeight||lanes[0].offsetHeight; if(laneH===0){const pf=$("#playfield");laneH=pf?pf.clientHeight:720}
   const hitY=laneH-120;const spawnY=-40;
+  const grid=document.getElementById('defragGrid');
+  const cells = grid?grid.children:[];
   // Scanner sweep UI (Defrag B style)
   try{
     const stageRect = document.querySelector('.stage')?.getBoundingClientRect();
@@ -1134,6 +1153,19 @@ function updateNotes(){
     // Batch transform updates
     updates.push(() => {
       n.el.style.transform=`translateY(${y}px)`;
+      // Map note Y to grid row and briefly tint that cell to simulate defrag write
+      if(grid && cells && cells.length){
+        const rows=18, cols=32;
+        const row=Math.max(0, Math.min(rows-1, Math.floor((y/laneH)*rows)));
+        const col = n.lane < 4 ? Math.floor((n.lane/4)*cols) + Math.floor(cols/8) : 0; // rough mapping
+        const idx=row*cols + Math.max(0, Math.min(cols-1, col));
+        const cell=cells[idx];
+        if(cell){
+          const color = n.sp? 'rgba(250,204,21,.95)' : 'rgba(59,130,246,.85)';
+          cell.style.background=color;
+          setTimeout(()=>{cell.style.background='rgba(255,255,255,.06)'},160);
+        }
+      }
     });
     
     if(t>n.t+game.hitWindow&&!n.hit&&!n.missed){ 
@@ -1202,6 +1234,11 @@ function damageSelf(amount,label){game.combo=0;game.missCount++;game.hpSelf=Math
       const fxSrc = (game.enemyName==='GL!TCH') ? 'assets/img/ui/effect3.png' : 'assets/img/ui/effect2.png';
       ef.src=fxSrc; ef.style.display='block'; ef.className='attackEffect flyR2L';
       setTimeout(()=>{ef.style.display='none'; ef.className='attackEffect'},900)
+    }
+    // D style: trigger grid burst
+    const grid=document.getElementById('defragGrid'); if(grid){
+      grid.classList.add('defragBurst');
+      setTimeout(()=>grid.classList.remove('defragBurst'),800);
     }
     // align CRITICAL text same Y as SPECIAL
     const b=document.getElementById('banner'); const prevTop=b.style.top; b.style.top='24%';
