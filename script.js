@@ -1110,6 +1110,19 @@ function makeNoteEl(n){ const lane=$(`.lane[data-index="${n.lane}"]`);if(!lane)r
 function updateNotes(){
   const t=now();const lanes=$$(".lane");if(!lanes.length)return;let laneH=lanes[0].clientHeight||lanes[0].offsetHeight; if(laneH===0){const pf=$("#playfield");laneH=pf?pf.clientHeight:720}
   const hitY=laneH-120;const spawnY=-40;
+  // Scanner sweep UI (Defrag B style)
+  try{
+    const stageRect = document.querySelector('.stage')?.getBoundingClientRect();
+    const bar=$('#scannerBar'); const trail=$('#scannerTrail');
+    if(stageRect && bar && trail){
+      const sweep=2.0; // seconds per sweep
+      const phase=(t % sweep)/sweep; // 0..1
+      const y = (phase*laneH);
+      bar.style.top = (y + (stageRect.top||0)) + 'px';
+      trail.style.top = (y - 110 + (stageRect.top||0)) + 'px';
+      bar.style.display='block'; trail.style.display='block';
+    }
+  }catch(e){}
   
   // Batch DOM updates for better performance
   const updates = [];
