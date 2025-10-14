@@ -939,7 +939,7 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
     playSfx("sfx_start");
     setTimeout(()=>{
       countdownEl.style.display="none";
-      // Start audio and video simultaneously after countdown
+      // Start audio; ensure MV audio is muted to avoid double playback
       if(audioEl){
         console.log("Starting audio playback");
         audioEl.currentTime=0;
@@ -951,6 +951,8 @@ function startBattle(scene){setBG(scene.bg);showBackground(false);deactivateBgMo
       } else {
         console.error("No audio element available for playback");
       }
+      
+      try{ const mv=document.getElementById('mv'); if(mv){ mv.muted=true; mv.volume=0; } }catch(e){}
       
       videoEl.currentTime=0;
       
@@ -1030,22 +1032,28 @@ function defragSpawnPattern(bpm,duration){
 
 function defragStart(){
   defrag.notes = defragSpawnPattern(game.bpm, game.duration).map(n=>({t:n.t, x:window.innerWidth*0.85, hit:false, judged:false}));
+  // cache metrics
+  defrag.trackLeft = window.innerWidth*0.15; defrag.trackRight = window.innerWidth*0.85; defrag.judgeX = window.innerWidth*0.5;
 }
 
 function defragUpdate(dt){ if(!defrag.enabled) return; const cont=$('#defragNotes'); if(!cont) return;
-  const nowT=seconds(); const judgeX = window.innerWidth*0.5; // center line
+  const nowT=seconds(); const judgeX = defrag.judgeX || (window.innerWidth*0.5); // center line
+  const startX = defrag.trackRight || (window.innerWidth*0.85);
+  const offscreenX = defrag.trackLeft || (window.innerWidth*0.15);
   for(const n of defrag.notes){
     if(!n.el){ const el=document.createElement('div'); el.className='defragNote'; el.style.background='#6b7280'; cont.appendChild(el); n.el=el }
     const aliveTime = Math.max(0, nowT - (n.t - game.travelTime));
-    n.x = window.innerWidth*0.85 - defrag.speed * aliveTime;
+    n.x = startX - defrag.speed * aliveTime;
     n.el.style.left = n.x + 'px';
     if(!n.judged && Math.abs(n.x-judgeX) < 6){ // auto judgement window visualization
       // do nothing; wait for input
     }
-    if(n.x < window.innerWidth*0.12 && !n.judged){ // passed judge line -> miss
-      n.judged=true; paintGrid('miss'); if(n.el){n.el.remove()} damageSelfSilent(1)
+    if(n.x < offscreenX && !n.judged){ // passed judge line -> miss
+      n.judged=true; paintGrid('miss'); if(n.el){n.el.remove()} n.removed=true; damageSelfSilent(1)
     }
   }
+  // prune removed
+  defrag.notes = defrag.notes.filter(n=>!n.removed);
 }
 
 function defragHit(){ if(!defrag.enabled) return; const judgeX= window.innerWidth*0.5; const t=seconds();
@@ -1781,6 +1789,8 @@ window.addEventListener("load", async () => {
   // addMobileTouchSupport();
   // Bind Space for defrag mode
   document.addEventListener('keydown',(e)=>{ if(e.code==='Space'){ e.preventDefault(); defragHit() }})
+  // Recompute metrics on resize (prevents layout jank)
+  window.addEventListener('resize',()=>{ defrag.trackLeft = window.innerWidth*0.15; defrag.trackRight = window.innerWidth*0.85; defrag.judgeX = window.innerWidth*0.5 })
 });
 
 
